@@ -1,0 +1,124 @@
+.form {
+  background: none;
+  border: 2px solid #fff;
+  border-radius: 10px;
+  box-shadow: none;
+  padding: 2rem 2.5rem;
+  max-width: 400px;
+  width: 100%;
+  margin: 0 auto;
+  color: #222;
+}
+
+.form h2 {
+  color: #4169e1;
+  margin-bottom: 1.2rem;
+}
+
+.form-group {
+  margin-bottom: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.form-group label {
+  font-weight: 500;
+  margin-bottom: 0.4rem;
+}
+
+.form input,
+.form select {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid #000;
+  border-radius: 5px;
+  font-size: 1rem;
+  margin-bottom: 0.1rem;
+  background: none;
+}
+
+.primary-btn {
+  background: #4169e1;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 0.6rem 1.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.primary-btn:hover {
+  background: #27408b;
+}
+
+.link-btn {
+  background: none;
+  color: #000;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 1rem;
+  padding: 0;
+  transition: color 0.2s, font-style 0.2s;
+}
+.link-btn:hover {
+  color: #000;
+  font-style: italic;
+}
+body, html, #root, .App {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  background: #b2bec3; /* ash */
+}
+
+.App {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.App-header {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #b2bec3 60%, #fff 100%); /* ash to white */
+  padding: 2rem;
+  color: #fff;
+}
+
+.App-logo {
+  width: 120px;
+  height: auto;
+  margin-bottom: 1.5rem;
+  /* background removed */
+  /* border-radius removed */
+  /* box-shadow removed */
+  /* padding removed */
+}
+
+.App-header h1 {
+  color: #000;
+  margin-bottom: 0.5rem;
+}
+
+.App-header p {
+  color: #f7f7f7;
+  font-size: 1.2rem;
+}
+
+@media (max-width: 600px) {
+  .App-header h1 {
+    font-size: 1.5rem;
+  }
+  .App-header p {
+    font-size: 1rem;
+  }
+  .App-logo {
+    width: 80px;
+  }
+}
