@@ -21,6 +21,7 @@ const userSchema = new mongoose.Schema({
   localePreference: { type: String, default: 'en-US' },
   securityQuestion: { type: String },
   securityAnswer: { type: String },
+  mustResetPassword: { type: Boolean, default: false },
   emailVerificationRequired: { type: Boolean, default: false },
   emailVerified: { type: Boolean, default: false },
   emailVerificationToken: { type: String },

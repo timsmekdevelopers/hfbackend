@@ -124,6 +124,7 @@ router.post('/register', async (req, res) => {
       stateHqAddress,
       securityQuestion,
       securityAnswer: hashedSecurityAnswer,
+      mustResetPassword: true,
       emailVerificationRequired,
       emailVerified: !emailVerificationRequired,
       emailVerificationToken: emailVerificationRequired ? emailVerificationToken : undefined,
@@ -377,11 +378,18 @@ router.post('/:id/notifications/:nid/read', async (req, res) => {
 router.post('/:id/reset-password', async (req, res) => {
   try {
     const { newPassword } = req.body;
+    if (!newPassword || String(newPassword).length < 6) {
+      return res.status(400).json({ msg: 'New password must be at least 6 characters.' });
+    }
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ msg: 'User not found' });
     user.password = await hashValue(newPassword);
+    user.mustResetPassword = false;
     await user.save();
-    res.json({ msg: 'Password reset successful' });
+    const safeUser = user.toObject();
+    delete safeUser.password;
+    delete safeUser.securityAnswer;
+    res.json({ msg: 'Password reset successful', user: safeUser });
   } catch (err) {
     res.status(500).json({ msg: err.message });
   }
@@ -544,7 +552,10 @@ router.post('/login', async (req, res) => {
     delete safeUser.password;
     delete safeUser.securityAnswer;
 
-    // For demo: return user info (in production, return JWT or session)
+    if (user.mustResetPassword) {
+      return res.json({ msg: 'Password reset required', mustResetPassword: true, user: safeUser });
+    }
+
     res.json({ msg: 'Login successful', user: safeUser });
   } catch (err) {
     res.status(500).json({ msg: err.message });
