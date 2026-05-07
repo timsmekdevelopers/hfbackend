@@ -1,10 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const User = require('../models/User');
 const roles = require('../roles');
 
 const SALT_ROUNDS = 10;
+const EMAIL_VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const EMAIL_VERIFICATION_REQUIRED_ROLES = new Set([
+  roles.BRANCH_PASTOR,
+  roles.STATE_PASTOR,
+  roles.ADMIN
+]);
 
 function approvedQuery() {
   return { $or: [{ approved: true }, { 'approval.status': 'approved' }] };
@@ -28,6 +35,14 @@ async function compareValue(input, stored) {
     return bcrypt.compare(String(input), stored);
   }
   return String(input) === String(stored);
+}
+
+function requiresEmailVerification(role) {
+  return EMAIL_VERIFICATION_REQUIRED_ROLES.has(String(role || '').trim());
+}
+
+function generateEmailVerificationToken() {
+  return crypto.randomBytes(24).toString('hex');
 }
 
 async function findAssignedHfLeader({ country, state, city }) {
@@ -90,6 +105,8 @@ router.post('/register', async (req, res) => {
     const normalizedAnswer = securityAnswer ? normalizeSecurityAnswer(securityAnswer) : '';
     const hashedSecurityAnswer = normalizedAnswer ? await hashValue(normalizedAnswer) : '';
     const isMember = String(role || '') === roles.MEMBER;
+    const emailVerificationRequired = requiresEmailVerification(role);
+    const emailVerificationToken = emailVerificationRequired ? generateEmailVerificationToken() : '';
 
     const now = new Date();
     const user = new User({
@@ -107,6 +124,10 @@ router.post('/register', async (req, res) => {
       stateHqAddress,
       securityQuestion,
       securityAnswer: hashedSecurityAnswer,
+      emailVerificationRequired,
+      emailVerified: !emailVerificationRequired,
+      emailVerificationToken: emailVerificationRequired ? emailVerificationToken : undefined,
+      emailVerificationTokenExpiresAt: emailVerificationRequired ? new Date(now.getTime() + EMAIL_VERIFICATION_TOKEN_TTL_MS) : undefined,
       approved: isMember,
       approval: {
         status: isMember ? 'approved' : 'pending',
@@ -117,7 +138,14 @@ router.post('/register', async (req, res) => {
         appliedAt: now,
         chain: isMember ? [{ by: 'System', role: 'System', at: now, status: 'approved' }] : []
       },
-      notifications: [{ message: isMember ? 'Your Member account is active and ready to use.' : 'Your registration is pending approval.' }],
+      notifications: [
+        {
+          message: isMember ? 'Your Member account is active and ready to use.' : 'Your registration is pending approval.'
+        },
+        ...(emailVerificationRequired
+          ? [{ message: 'Verify your email to enable password reset emails for your account.' }]
+          : [])
+      ],
       createdAt: now
     });
     await assignMemberLeaderFields(user);
@@ -130,7 +158,9 @@ router.post('/register', async (req, res) => {
     res.status(201).json({
       msg: isMember ? 'Member account created' : 'User registered',
       user: safeUser,
-      autoApproved: isMember
+      autoApproved: isMember,
+      emailVerificationRequired,
+      verificationToken: emailVerificationRequired ? emailVerificationToken : undefined
     });
   } catch (err) {
     res.status(500).json({ msg: err.message });
@@ -357,6 +387,82 @@ router.post('/:id/reset-password', async (req, res) => {
   }
 });
 
+router.post('/verify-email/request', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ msg: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    if (!requiresEmailVerification(user.role)) {
+      return res.json({ msg: 'Email verification is not required for this role.', emailVerificationRequired: false });
+    }
+
+    if (user.emailVerified) {
+      return res.json({ msg: 'Email is already verified.', emailVerified: true });
+    }
+
+    const verificationToken = generateEmailVerificationToken();
+    user.emailVerificationRequired = true;
+    user.emailVerificationToken = verificationToken;
+    user.emailVerificationTokenExpiresAt = new Date(Date.now() + EMAIL_VERIFICATION_TOKEN_TTL_MS);
+    await user.save();
+
+    // TODO: Replace with actual mail provider integration.
+    res.json({
+      msg: 'Verification token generated. Send this token via your email provider integration.',
+      emailVerificationRequired: true,
+      verificationToken
+    });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
+router.post('/verify-email/confirm', async (req, res) => {
+  try {
+    const { email, token } = req.body;
+    if (!email || !token) {
+      return res.status(400).json({ msg: 'Email and token are required' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    if (!requiresEmailVerification(user.role)) {
+      return res.json({ msg: 'Email verification is not required for this role.', emailVerificationRequired: false });
+    }
+
+    if (user.emailVerified) {
+      return res.json({ msg: 'Email is already verified.', emailVerified: true });
+    }
+
+    const tokenMatches = String(user.emailVerificationToken || '') === String(token);
+    const tokenNotExpired = user.emailVerificationTokenExpiresAt && user.emailVerificationTokenExpiresAt.getTime() > Date.now();
+    if (!tokenMatches || !tokenNotExpired) {
+      return res.status(400).json({ msg: 'Verification token is invalid or expired' });
+    }
+
+    user.emailVerificationRequired = true;
+    user.emailVerified = true;
+    user.emailVerifiedAt = new Date();
+    user.emailVerificationToken = undefined;
+    user.emailVerificationTokenExpiresAt = undefined;
+    await user.save();
+
+    res.json({ msg: 'Email verified successfully', emailVerified: true });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
 router.post('/forgot-password/question', async (req, res) => {
   try {
     const { email } = req.body;
@@ -364,9 +470,13 @@ router.post('/forgot-password/question', async (req, res) => {
       return res.status(400).json({ msg: 'Email is required' });
     }
 
-    const user = await User.findOne({ email }).select('securityQuestion');
+    const user = await User.findOne({ email }).select('securityQuestion role emailVerified');
     if (!user || !user.securityQuestion) {
       return res.status(404).json({ msg: 'No security question found for this email' });
+    }
+
+    if (requiresEmailVerification(user.role) && !user.emailVerified) {
+      return res.status(403).json({ msg: 'Please verify your email before requesting password reset.' });
     }
 
     res.json({ securityQuestion: user.securityQuestion });
@@ -385,6 +495,10 @@ router.post('/forgot-password/reset', async (req, res) => {
     const user = await User.findOne({ email });
     if (!user || !user.securityQuestion || !user.securityAnswer) {
       return res.status(404).json({ msg: 'User with a security question was not found' });
+    }
+
+    if (requiresEmailVerification(user.role) && !user.emailVerified) {
+      return res.status(403).json({ msg: 'Please verify your email before resetting password.' });
     }
 
     const normalizedInputAnswer = normalizeSecurityAnswer(securityAnswer);

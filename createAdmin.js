@@ -16,6 +16,8 @@ async function createAdmin() {
     email: 'admin@hf.local',
     password: hashedPassword,
     role: 'Admin',
+    emailVerificationRequired: true,
+    emailVerified: false,
     approved: true,
     approval: {
       status: 'approved',
@@ -24,7 +26,7 @@ async function createAdmin() {
       approvedAt: new Date(),
       chain: []
     },
-    notifications: [{ message: 'Admin account created.' }],
+    notifications: [{ message: 'Admin account created. Verify email to enable password reset emails.' }],
     createdAt: new Date()
   });
   console.log('Admin user created: admin@hf.local / admin123');

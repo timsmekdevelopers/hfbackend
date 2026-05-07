@@ -21,6 +21,11 @@ const userSchema = new mongoose.Schema({
   localePreference: { type: String, default: 'en-US' },
   securityQuestion: { type: String },
   securityAnswer: { type: String },
+  emailVerificationRequired: { type: Boolean, default: false },
+  emailVerified: { type: Boolean, default: false },
+  emailVerificationToken: { type: String },
+  emailVerificationTokenExpiresAt: { type: Date },
+  emailVerifiedAt: { type: Date },
   attendanceCredits: { type: Number, default: 0 },
   attendanceHistory: [
     {
