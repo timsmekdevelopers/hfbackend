@@ -164,6 +164,9 @@ router.post('/register', async (req, res) => {
       verificationToken: emailVerificationRequired ? emailVerificationToken : undefined
     });
   } catch (err) {
+    if (err && err.code === 11000 && err.keyPattern && err.keyPattern.email) {
+      return res.status(409).json({ msg: 'A member with that email already exists.' });
+    }
     res.status(500).json({ msg: err.message });
   }
 });
