@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const router = express.Router();
 const FellowCenterSetupRequest = require('../models/FellowCenterSetupRequest');
 const Organization = require('../models/Organization');
+const { evictOrgConnection } = require('../orgDb');
 
 // ─── POST /api/organizations/setup-request ─────────────────────────────────
 // Public. Anyone can submit a Fellow Center Setup Request (Senior Pastor flow).
@@ -132,6 +133,27 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ─── GET /api/organizations/by-domain ───────────────────────────────────
+// Public — look up an active org by its custom domain hostname.
+// Used by the frontend to apply org branding when accessed via a custom domain.
+router.get('/by-domain', async (req, res) => {
+  try {
+    const { hostname } = req.query;
+    if (!hostname) return res.status(400).json({ msg: 'hostname query param required.' });
+
+    // Only return branding-safe fields — never expose secrets like dedicatedDatabaseUri
+    const org = await Organization.findOne(
+      { customDomain: hostname.toLowerCase().trim(), status: 'active' },
+      'name logo address enquiryPhone themeKey organization_id'
+    );
+
+    if (!org) return res.status(404).json({ msg: 'No active organization found for this domain.' });
+    res.json(org);
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
 // ─── GET /api/organizations/mine ─────────────────────────────────────────
 // Admin — fetch their own organization by email.
 router.get('/mine', async (req, res) => {
@@ -154,11 +176,18 @@ router.put('/:id/settings', async (req, res) => {
     const org = await Organization.findById(req.params.id);
     if (!org) return res.status(404).json({ msg: 'Organization not found.' });
 
+    const uriChanged = dedicatedDatabaseUri !== undefined &&
+      dedicatedDatabaseUri.trim() !== (org.dedicatedDatabaseUri || '');
+
     if (dedicatedDatabaseUri !== undefined) org.dedicatedDatabaseUri = dedicatedDatabaseUri.trim();
-    if (customDomain !== undefined) org.customDomain = customDomain.trim();
+    if (customDomain !== undefined) org.customDomain = customDomain.toLowerCase().trim();
     if (themeKey !== undefined) org.themeKey = themeKey;
     if (logo !== undefined) org.logo = logo;
     await org.save();
+
+    // If the Admin changed their DB URI, drop the stale cached connection so
+    // the next request establishes a fresh one to the new cluster.
+    if (uriChanged) evictOrgConnection(org._id);
 
     res.json({ msg: 'Organization settings updated.', organization: org });
   } catch (err) {
