@@ -17,6 +17,9 @@ const organizationSchema = new mongoose.Schema({
   adminPosition: { type: String },  // position / title in the church
   adminPassportPhoto: { type: String }, // base64
 
+  // Branding / appearance chosen by Admin
+  themeKey: { type: String, default: 'default' }, // matches THEMES key on frontend
+
   // Infrastructure preferences
   wantsDedicatedDatabase: { type: Boolean, default: false },
   dedicatedDatabaseUri: { type: String },        // submitted by Admin via settings

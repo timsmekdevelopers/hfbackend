@@ -150,12 +150,14 @@ router.get('/mine', async (req, res) => {
 // Admin — update infrastructure settings for their organization.
 router.put('/:id/settings', async (req, res) => {
   try {
-    const { dedicatedDatabaseUri, customDomain } = req.body;
+    const { dedicatedDatabaseUri, customDomain, themeKey, logo } = req.body;
     const org = await Organization.findById(req.params.id);
     if (!org) return res.status(404).json({ msg: 'Organization not found.' });
 
     if (dedicatedDatabaseUri !== undefined) org.dedicatedDatabaseUri = dedicatedDatabaseUri.trim();
     if (customDomain !== undefined) org.customDomain = customDomain.trim();
+    if (themeKey !== undefined) org.themeKey = themeKey;
+    if (logo !== undefined) org.logo = logo;
     await org.save();
 
     res.json({ msg: 'Organization settings updated.', organization: org });
