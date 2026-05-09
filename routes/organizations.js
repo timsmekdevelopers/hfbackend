@@ -4,6 +4,7 @@ const router = express.Router();
 const FellowCenterSetupRequest = require('../models/FellowCenterSetupRequest');
 const Organization = require('../models/Organization');
 const { evictOrgConnection } = require('../orgDb');
+const { validateUri, migrateOrgDb } = require('../orgMigration');
 
 // ─── POST /api/organizations/setup-request ─────────────────────────────────
 // Public. Anyone can submit a Fellow Center Setup Request (Senior Pastor flow).
@@ -169,27 +170,132 @@ router.get('/mine', async (req, res) => {
 });
 
 // ─── PUT /api/organizations/:id/settings ─────────────────────────────────
-// Admin — update infrastructure settings for their organization.
+// Admin — update non-DB-switching settings (theme, logo, customDomain).
+// NOTE: dedicatedDatabaseUri is intentionally NOT updated here directly.
+//       Changing the database URI requires a full migration via POST /migrate-db
+//       to ensure no data is lost.  Sending dedicatedDatabaseUri in this body
+//       is silently ignored if an existing URI is already active.
 router.put('/:id/settings', async (req, res) => {
   try {
     const { dedicatedDatabaseUri, customDomain, themeKey, logo } = req.body;
     const org = await Organization.findById(req.params.id);
     if (!org) return res.status(404).json({ msg: 'Organization not found.' });
 
-    const uriChanged = dedicatedDatabaseUri !== undefined &&
-      dedicatedDatabaseUri.trim() !== (org.dedicatedDatabaseUri || '');
+    // Safely handle dedicatedDatabaseUri:
+    // • No existing URI → first-time activation → safe to set directly (nothing to migrate).
+    // • URI hasn't changed → no-op.
+    // • URI changed AND there was an existing one → reject; must use /migrate-db instead.
+    if (dedicatedDatabaseUri !== undefined) {
+      const incoming = dedicatedDatabaseUri.trim();
+      const current = org.dedicatedDatabaseUri || '';
+      if (incoming && current && incoming !== current) {
+        return res.status(409).json({
+          msg: 'Your organization already has an active database. ' +
+               'To switch clusters safely, use the "Migrate Database" option ' +
+               'which will copy your data before switching.',
+          requiresMigration: true
+        });
+      }
+      if (!current && incoming) {
+        // First-time setup — set directly
+        org.dedicatedDatabaseUri = incoming;
+      }
+    }
 
-    if (dedicatedDatabaseUri !== undefined) org.dedicatedDatabaseUri = dedicatedDatabaseUri.trim();
     if (customDomain !== undefined) org.customDomain = customDomain.toLowerCase().trim();
     if (themeKey !== undefined) org.themeKey = themeKey;
     if (logo !== undefined) org.logo = logo;
     await org.save();
 
-    // If the Admin changed their DB URI, drop the stale cached connection so
-    // the next request establishes a fresh one to the new cluster.
-    if (uriChanged) evictOrgConnection(org._id);
-
     res.json({ msg: 'Organization settings updated.', organization: org });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
+// ─── POST /api/organizations/:id/validate-db ─────────────────────────────
+// Admin — quickly test whether a new MongoDB URI is reachable.
+// Runs a connect + disconnect with a short timeout. No reads or writes.
+// Use this before starting a full migration so the Admin knows the URI is valid.
+router.post('/:id/validate-db', async (req, res) => {
+  try {
+    const org = await Organization.findById(req.params.id);
+    if (!org) return res.status(404).json({ msg: 'Organization not found.' });
+
+    const { newUri } = req.body;
+    if (!newUri || typeof newUri !== 'string' || !newUri.trim()) {
+      return res.status(400).json({ msg: 'newUri is required.' });
+    }
+
+    const result = await validateUri(newUri.trim());
+    if (result.ok) {
+      res.json({ ok: true, msg: 'Connection successful. The new database is reachable.' });
+    } else {
+      res.status(400).json({ ok: false, msg: `Cannot reach database: ${result.error}` });
+    }
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
+// ─── POST /api/organizations/:id/migrate-db ──────────────────────────────
+// Admin — migrate all data from the current dedicated cluster to a new one.
+//
+// SAFETY CONTRACT:
+//  • The old cluster's URI is never changed until EVERY collection is copied
+//    and its document count verified on the new cluster.
+//  • If the migration fails at any step, the org's dedicatedDatabaseUri is
+//    left unchanged — the org stays online on its existing cluster.
+//  • A second migration cannot start while one is already in_progress.
+router.post('/:id/migrate-db', async (req, res) => {
+  try {
+    const org = await Organization.findById(req.params.id);
+    if (!org) return res.status(404).json({ msg: 'Organization not found.' });
+
+    const { newUri } = req.body;
+    if (!newUri || typeof newUri !== 'string' || !newUri.trim()) {
+      return res.status(400).json({ msg: 'newUri is required.' });
+    }
+
+    const incoming = newUri.trim();
+
+    // Prevent duplicate runs
+    if (org.migrationStatus === 'in_progress') {
+      return res.status(409).json({
+        msg: 'A migration is already in progress for this organization. ' +
+             'Please wait for it to complete before starting another.',
+        migrationStatus: 'in_progress'
+      });
+    }
+
+    // Nothing to do if same URI
+    if (incoming === (org.dedicatedDatabaseUri || '')) {
+      return res.status(400).json({ msg: 'The new URI is the same as the current one.' });
+    }
+
+    // Run the migration synchronously.
+    // For church-management data volumes this is safe within a normal HTTP timeout.
+    // The client should use a long fetch timeout (or show a progress indicator).
+    const result = await migrateOrgDb(org, incoming);
+
+    if (result.ok) {
+      // Re-fetch to get the updated document after migration saved it
+      const updated = await Organization.findById(req.params.id);
+      res.json({
+        ok: true,
+        msg: `Migration complete. ${result.docsCopied} documents across ` +
+             `${result.collections.length} collections copied and verified.`,
+        collections: result.collections,
+        docsCopied: result.docsCopied,
+        organization: updated
+      });
+    } else {
+      res.status(500).json({
+        ok: false,
+        msg: result.error,
+        migrationStatus: 'failed'
+      });
+    }
   } catch (err) {
     res.status(500).json({ msg: err.message });
   }

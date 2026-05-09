@@ -22,7 +22,22 @@ const organizationSchema = new mongoose.Schema({
 
   // Infrastructure preferences
   wantsDedicatedDatabase: { type: Boolean, default: false },
-  dedicatedDatabaseUri: { type: String },        // submitted by Admin via settings
+  dedicatedDatabaseUri: { type: String },        // ACTIVE — in use right now
+
+  // Migration pipeline
+  // When an Admin wants to switch clusters, the new URI is held here while
+  // data is being copied.  Only promoted to dedicatedDatabaseUri on success.
+  pendingDatabaseUri: { type: String },
+  migrationStatus: {
+    type: String,
+    enum: ['idle', 'in_progress', 'succeeded', 'failed'],
+    default: 'idle'
+  },
+  migrationStartedAt: { type: Date },
+  migrationFinishedAt: { type: Date },
+  migrationError: { type: String },              // last failure message (if any)
+  migrationCollectionsCopied: { type: Number },  // for progress reporting
+
   wantsCustomDomain: { type: Boolean, default: false },
   customDomain: { type: String },
 
