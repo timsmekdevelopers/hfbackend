@@ -35,6 +35,10 @@ app.use('/api/roles', rolesRoutes);
 const userRoutes = require('./routes/users');
 app.use('/api/users', userRoutes);
 
+// Organization / Fellow Center routes
+const organizationRoutes = require('./routes/organizations');
+app.use('/api/organizations', organizationRoutes);
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
