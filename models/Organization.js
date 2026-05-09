@@ -40,6 +40,8 @@ const organizationSchema = new mongoose.Schema({
 
   wantsCustomDomain: { type: Boolean, default: false },
   customDomain: { type: String },
+  customDomainVerified: { type: Boolean, default: false },    // true after TXT + CNAME/A check pass
+  customDomainVerifyToken: { type: String },                  // token Admin must put in TXT record
 
   // Lifecycle
   status: { type: String, enum: ['pending', 'active', 'suspended'], default: 'pending' },

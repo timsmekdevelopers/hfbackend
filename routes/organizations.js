@@ -1,10 +1,77 @@
 const express = require('express');
 const crypto = require('crypto');
+const dns = require('dns/promises');
+const https = require('https');
 const router = express.Router();
 const FellowCenterSetupRequest = require('../models/FellowCenterSetupRequest');
 const Organization = require('../models/Organization');
 const { evictOrgConnection } = require('../orgDb');
 const { validateUri, migrateOrgDb } = require('../orgMigration');
+
+// ─── Domain verification helpers ─────────────────────────────────────────────
+
+// Check whether the domain's DNS routes to Vercel (CNAME or A record).
+// Subdomains use CNAME → cname.vercel-dns.com.
+// Apex domains (e.g. mychurch.org) use A → 76.76.21.21.
+const VERCEL_CNAME_SUFFIX = 'vercel-dns.com';
+const VERCEL_IPS = ['76.76.21.21', '76.76.21.22'];
+
+async function checkDnsRouting(domain) {
+  // Try CNAME first (works for subdomains like app.mychurch.org)
+  try {
+    const cnames = await dns.resolveCname(domain);
+    if (cnames.some(c => c.includes(VERCEL_CNAME_SUFFIX))) {
+      return { ok: true, detail: `CNAME → ${cnames[0]}` };
+    }
+    return { ok: false, detail: `CNAME found (${cnames[0]}) but does not point to Vercel. Expected a value containing "${VERCEL_CNAME_SUFFIX}".` };
+  } catch {
+    // No CNAME — apex domain; check A record
+    try {
+      const addrs = await dns.resolve4(domain);
+      if (addrs.some(a => VERCEL_IPS.includes(a))) {
+        return { ok: true, detail: `A record → ${addrs[0]}` };
+      }
+      return { ok: false, detail: `A record found (${addrs[0]}) but does not match Vercel IPs. Point your A record to 76.76.21.21.` };
+    } catch {
+      return { ok: false, detail: `No CNAME or A record found for "${domain}". Add a CNAME record pointing to cname.vercel-dns.com (for subdomains) or an A record of 76.76.21.21 (for apex domains).` };
+    }
+  }
+}
+
+// Register the domain in the Vercel project via the Vercel REST API.
+// Requires VERCEL_TOKEN and VERCEL_PROJECT_ID env vars.
+// If those aren't set the call is skipped and the Admin must add the domain
+// in the Vercel dashboard manually.
+function vercelAddDomain(domain) {
+  return new Promise((resolve) => {
+    const token = process.env.VERCEL_TOKEN;
+    const projectId = process.env.VERCEL_PROJECT_ID;
+    if (!token || !projectId) {
+      return resolve({ skipped: true, msg: 'VERCEL_TOKEN or VERCEL_PROJECT_ID not configured — add the domain manually in your Vercel project settings.' });
+    }
+    const body = JSON.stringify({ name: domain });
+    const req = https.request({
+      hostname: 'api.vercel.com',
+      path: `/v10/projects/${encodeURIComponent(projectId)}/domains`,
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body)
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
+        catch { resolve({ status: res.statusCode, body: data }); }
+      });
+    });
+    req.on('error', (err) => resolve({ error: err.message }));
+    req.write(body);
+    req.end();
+  });
+}
 
 // ─── POST /api/organizations/setup-request ─────────────────────────────────
 // Public. Anyone can submit a Fellow Center Setup Request (Senior Pastor flow).
@@ -202,7 +269,15 @@ router.put('/:id/settings', async (req, res) => {
       }
     }
 
-    if (customDomain !== undefined) org.customDomain = customDomain.toLowerCase().trim();
+    if (customDomain !== undefined) {
+      const newDomain = customDomain.toLowerCase().trim();
+      // Reset domain verification whenever the domain value changes
+      if (newDomain !== (org.customDomain || '')) {
+        org.customDomainVerified = false;
+        org.customDomainVerifyToken = undefined;
+      }
+      org.customDomain = newDomain;
+    }
     if (themeKey !== undefined) org.themeKey = themeKey;
     if (logo !== undefined) org.logo = logo;
     await org.save();
@@ -296,6 +371,115 @@ router.post('/:id/migrate-db', async (req, res) => {
         migrationStatus: 'failed'
       });
     }
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
+// ─── POST /api/organizations/:id/verify-domain ───────────────────────────
+// Admin — two-step domain ownership + DNS routing verification.
+//
+// Body: { action: 'start' }
+//   Generates a unique TXT verification token, saves it on the org, and returns
+//   the exact DNS records the Admin must add at their registrar.
+//
+// Body: { action: 'check' }
+//   1. Looks up the TXT record _hf-verify.<domain> and checks for the token.
+//   2. Checks that the domain's CNAME (or A record for apex domains) points to Vercel.
+//   3. If both pass: calls Vercel API to register the domain in the project
+//      (requires VERCEL_TOKEN + VERCEL_PROJECT_ID env vars; skipped if absent).
+//   4. Marks org.customDomainVerified = true only after DNS is confirmed.
+router.post('/:id/verify-domain', async (req, res) => {
+  try {
+    const org = await Organization.findById(req.params.id);
+    if (!org) return res.status(404).json({ msg: 'Organization not found.' });
+
+    const domain = org.customDomain;
+    if (!domain) {
+      return res.status(400).json({ msg: 'No custom domain set on this organization. Save a domain first.' });
+    }
+
+    const { action } = req.body;
+
+    // ── action: start ────────────────────────────────────────────────────────
+    if (action === 'start') {
+      // Token is deterministic: the org's unique ID makes it globally unique
+      // without needing to store a random secret.
+      const token = `hf-verify-${org.organization_id}`;
+      org.customDomainVerifyToken = token;
+      org.customDomainVerified = false;
+      await org.save();
+
+      return res.json({
+        token,
+        domain,
+        txtRecord: `_hf-verify.${domain}`,
+        cname: 'cname.vercel-dns.com',
+        apexA: '76.76.21.21'
+      });
+    }
+
+    // ── action: check ────────────────────────────────────────────────────────
+    if (action === 'check') {
+      const expectedToken = org.customDomainVerifyToken;
+      if (!expectedToken) {
+        return res.status(400).json({ msg: 'No verification token found. Click "Generate Verification Token" first.' });
+      }
+
+      // Step 1: TXT ownership check
+      let txtFound = false;
+      try {
+        const records = await dns.resolveTxt(`_hf-verify.${domain}`);
+        // records is string[][] — flatten and check for exact token match
+        txtFound = records.flat().some(r => r === expectedToken || r.includes(expectedToken));
+      } catch {
+        // Record not yet propagated or doesn't exist — fall through
+      }
+
+      if (!txtFound) {
+        return res.status(400).json({
+          ok: false,
+          step: 'txt',
+          msg: `TXT record not found yet for _hf-verify.${domain}. ` +
+               `Make sure the value is exactly "${expectedToken}". ` +
+               `DNS propagation can take a few minutes — try again shortly.`
+        });
+      }
+
+      // Step 2: Routing check (CNAME or A record → Vercel)
+      const routing = await checkDnsRouting(domain);
+      if (!routing.ok) {
+        return res.status(400).json({ ok: false, step: 'cname', msg: routing.detail });
+      }
+
+      // Step 3: Register with Vercel (best-effort; does not block verification)
+      const vercelResult = await vercelAddDomain(domain);
+      const vercelOk = vercelResult.skipped ||
+                       vercelResult.status === 200 ||
+                       vercelResult.status === 409; // 409 = already added to project
+
+      // Mark verified — DNS ownership + routing are confirmed
+      org.customDomainVerified = true;
+      await org.save();
+
+      const baseMsg = `Domain verified. DNS routing confirmed (${routing.detail}).`;
+      const vercelNote = vercelResult.skipped
+        ? ' Add the domain in your Vercel project settings to complete setup.'
+        : vercelOk
+          ? ` Domain registered with Vercel — your members can now visit ${domain}.`
+          : ` Vercel registration encountered an issue; add "${domain}" manually in your Vercel project settings.`;
+
+      return res.json({
+        ok: true,
+        domain,
+        dnsDetail: routing.detail,
+        vercelOk,
+        msg: baseMsg + vercelNote,
+        organization: org
+      });
+    }
+
+    return res.status(400).json({ msg: 'Invalid action. Use "start" or "check".' });
   } catch (err) {
     res.status(500).json({ msg: err.message });
   }
