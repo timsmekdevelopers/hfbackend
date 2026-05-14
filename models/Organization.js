@@ -48,6 +48,19 @@ const organizationSchema = new mongoose.Schema({
   setupRequestId: { type: mongoose.Schema.Types.ObjectId, ref: 'FellowCenterSetupRequest' },
   approvedBy: { type: String },
   approvedAt: { type: Date },
+
+  // Customizable navigation bar items shown on the org's Fellow Center
+  navbarItems: [{
+    label: { type: String, required: true },
+    href: { type: String, required: true }
+  }],
+
+  // Customizable footer links shown on the org's Fellow Center
+  footerLinks: [{
+    label: { type: String, required: true },
+    href: { type: String, required: true }
+  }],
+
   createdAt: { type: Date, default: Date.now }
 });
 

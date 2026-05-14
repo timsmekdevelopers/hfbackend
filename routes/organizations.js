@@ -244,7 +244,7 @@ router.get('/mine', async (req, res) => {
 //       is silently ignored if an existing URI is already active.
 router.put('/:id/settings', async (req, res) => {
   try {
-    const { dedicatedDatabaseUri, customDomain, themeKey, logo } = req.body;
+    const { dedicatedDatabaseUri, customDomain, themeKey, logo, navbarItems, footerLinks } = req.body;
     const org = await Organization.findById(req.params.id);
     if (!org) return res.status(404).json({ msg: 'Organization not found.' });
 
@@ -280,6 +280,18 @@ router.put('/:id/settings', async (req, res) => {
     }
     if (themeKey !== undefined) org.themeKey = themeKey;
     if (logo !== undefined) org.logo = logo;
+    if (Array.isArray(navbarItems)) {
+      org.navbarItems = navbarItems.map(item => ({
+        label: String(item.label || '').trim().slice(0, 80),
+        href: String(item.href || '').trim().slice(0, 500)
+      })).filter(item => item.label && item.href);
+    }
+    if (Array.isArray(footerLinks)) {
+      org.footerLinks = footerLinks.map(item => ({
+        label: String(item.label || '').trim().slice(0, 80),
+        href: String(item.href || '').trim().slice(0, 500)
+      })).filter(item => item.label && item.href);
+    }
     await org.save();
 
     res.json({ msg: 'Organization settings updated.', organization: org });
