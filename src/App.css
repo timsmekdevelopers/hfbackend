@@ -122,3 +122,22 @@ body, html, #root, .App {
     width: 80px;
   }
 }
+
+/* Org Navbar responsive */
+.org-nav-hamburger {
+  display: none !important;
+}
+.org-nav-mobile {
+  display: none !important;
+}
+@media (max-width: 640px) {
+  .org-nav-links {
+    display: none !important;
+  }
+  .org-nav-hamburger {
+    display: block !important;
+  }
+  .org-nav-mobile {
+    display: flex !important;
+  }
+}

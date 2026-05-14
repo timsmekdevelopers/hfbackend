@@ -6,6 +6,8 @@ function LoginForm({ autofill, onFirstLogin, onLogin, showReset, onResetDone }) 
   const [showResetFields, setShowResetFields] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [pendingUserId, setPendingUserId] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (autofill) {
@@ -25,13 +27,38 @@ function LoginForm({ autofill, onFirstLogin, onLogin, showReset, onResetDone }) 
         alert('Passwords do not match.');
         return;
       }
-      // Simulate password reset (call backend in real app)
-      alert('Password reset successful!');
-      setShowResetFields(false);
-      onResetDone && onResetDone();
-      onLogin && onLogin();
+      if (!pendingUserId) {
+        alert('Session expired. Please log in again.');
+        setShowResetFields(false);
+        onResetDone && onResetDone();
+        return;
+      }
+      setSubmitting(true);
+      try {
+        const res = await fetch(`/api/users/${pendingUserId}/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newPassword })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.msg || 'Password reset failed.');
+          return;
+        }
+        setPendingUserId(null);
+        setNewPassword('');
+        setConfirmPassword('');
+        setShowResetFields(false);
+        onResetDone && onResetDone();
+        onLogin && onLogin(data.user);
+      } catch (err) {
+        alert('Reset error: ' + err.message);
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
+    setSubmitting(true);
     try {
       const res = await fetch('/api/users/login', {
         method: 'POST',
@@ -40,8 +67,8 @@ function LoginForm({ autofill, onFirstLogin, onLogin, showReset, onResetDone }) 
       });
       const data = await res.json();
       if (res.ok) {
-        // Simulate first login detection (in real app, check backend flag)
-        if (password.length === 8) { // temp password is 8 chars
+        if (data.mustResetPassword) {
+          setPendingUserId(data.user._id);
           onFirstLogin && onFirstLogin();
         } else {
           onLogin && onLogin(data.user);
@@ -51,33 +78,39 @@ function LoginForm({ autofill, onFirstLogin, onLogin, showReset, onResetDone }) 
       }
     } catch (err) {
       alert('Login error: ' + err.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
     <form className="form" onSubmit={handleSubmit}>
-      <h2>Login</h2>
-      <div className="form-group">
-        <label>Email Address</label>
-        <input
-          type="email"
-          maxLength={40}
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          required
-          autoComplete="username"
-        />
-      </div>
-      <div className="form-group">
-        <label>Password</label>
-        <input
-          type="password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          required
-          autoComplete="current-password"
-        />
-      </div>
+      <h2>{showResetFields ? 'Reset the temporary password to continue' : 'Login'}</h2>
+      {!showResetFields && (
+        <>
+          <div className="form-group">
+            <label>Email Address</label>
+            <input
+              type="email"
+              maxLength={40}
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              autoComplete="username"
+            />
+          </div>
+          <div className="form-group">
+            <label>Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
+          </div>
+        </>
+      )}
       {showResetFields && (
         <>
           <div className="form-group">
@@ -102,7 +135,9 @@ function LoginForm({ autofill, onFirstLogin, onLogin, showReset, onResetDone }) 
           </div>
         </>
       )}
-      <button type="submit" className="primary-btn">{showResetFields ? 'Reset Password' : 'Login'}</button>
+      <button type="submit" className="primary-btn" disabled={submitting}>
+        {showResetFields ? 'Reset and continue' : 'Login'}
+      </button>
     </form>
   );
 }

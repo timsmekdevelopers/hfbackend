@@ -201,8 +201,6 @@ const EN_MESSAGES = {
   memberRole: 'Member',
   themeHint: 'Tip: You can customize the app\'s color theme in ⚙ Settings — try it out!',
   dismissHint: 'Got it',
-  residentialAddress: 'Residential Address',
-  fullName: 'Full Name',
   attendanceSummaryForMember: 'Your Attendance Summary',
   timesAttended: 'Times Attended',
   attendancePercentage: 'Attendance Percentage',

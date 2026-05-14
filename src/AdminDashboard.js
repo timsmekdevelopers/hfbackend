@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import ApprovalPanel from './ApprovalPanel';
 import HFRichTextEditor from './HFRichTextEditor';
 import { useTranslation } from './i18n';
+import SettingsPanel from './SettingsPanel';
 
 function getAdminDocumentLanguageStorageKey(userId) {
   return `hf_admin_documents_locale_${userId || 'guest'}`;
@@ -16,10 +17,13 @@ const TABS = [
   { id: 'relocations', labelKey: 'adminTabRelocations', roles: ['Branch Pastor', 'State Pastor', 'Admin'] },
   { id: 'post-manual', labelKey: 'adminTabPostManual', roles: ['Branch Pastor', 'State Pastor', 'Admin'] },
   { id: 'post-guide', labelKey: 'adminTabPostGuide', roles: ['Branch Pastor', 'State Pastor', 'Admin'] },
-  { id: 'stats', labelKey: 'adminTabStats', roles: ['Branch Pastor', 'State Pastor', 'Admin'] }
+  { id: 'stats', labelKey: 'adminTabStats', roles: ['Branch Pastor', 'State Pastor', 'Admin'] },
+  { id: 'fellow-centers', label: 'Fellow Centers', roles: ['Super Admin'] },
+  { id: 'admins', label: 'Admins', roles: ['Super Admin'] },
+  { id: 'settings', label: 'Settings', roles: ['Branch Pastor', 'State Pastor', 'Admin'] }
 ];
 
-export default function AdminDashboard({ user, languageOptions, locale }) {
+export default function AdminDashboard({ user, languageOptions, locale, org, onOrgUpdated }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState('approvals');
   const visibleTabs = useMemo(() => TABS.filter((item) => item.roles.includes(user?.role)), [user?.role]);
@@ -34,23 +38,25 @@ export default function AdminDashboard({ user, languageOptions, locale }) {
     <div style={{ width: '100%', border: '1px solid var(--theme-soft-border)', borderRadius: 10, overflow: 'hidden', marginTop: 16 }}>
       <div style={{ background: 'transparent', padding: '12px 20px' }}>
         <h2 style={{ margin: 0, color: 'var(--theme-text-strong)', fontSize: '1.1rem', fontWeight: 600 }}>
-          Admin Dashboard
+          {user?.role === 'Super Admin' ? 'Super Admin Dashboard' : 'Admin Dashboard'}
         </h2>
       </div>
 
-      <div style={{ padding: '0 20px 16px 20px', background: 'var(--theme-surface)' }}>
-        <JurisdictionStatsCards user={user} t={t} />
-      </div>
+      {user?.role !== 'Super Admin' && (
+        <div style={{ padding: '0 20px 16px 20px', background: 'var(--theme-surface)' }}>
+          <JurisdictionStatsCards user={user} t={t} />
+        </div>
+      )}
 
       <div style={{ display: 'flex', minHeight: 420 }}>
         <nav style={{ width: 220, flexShrink: 0, background: 'var(--theme-sidebar-bg)', display: 'flex', flexDirection: 'column', paddingTop: 8 }}>
-          {visibleTabs.map(({ id, labelKey }) => (
+          {visibleTabs.map(({ id, labelKey, label }) => (
             <button
               key={id}
               onClick={() => setTab(id)}
               className={`admin-nav-tab${tab === id ? ' active' : ''}`}
             >
-              {t(labelKey)}
+              {labelKey ? t(labelKey) : label}
             </button>
           ))}
         </nav>
@@ -65,6 +71,21 @@ export default function AdminDashboard({ user, languageOptions, locale }) {
           {tab === 'post-manual' && <DocumentComposer user={user} t={t} type="manual" />}
           {tab === 'post-guide' && <DocumentComposer user={user} t={t} type="guide" />}
           {tab === 'stats' && <DocumentStats t={t} />}
+          {tab === 'fellow-centers' && <FellowCentersPanel user={user} />}
+          {tab === 'admins' && <AdminsPanel user={user} />}
+          {tab === 'settings' && (
+            <SettingsPanel
+              user={user}
+              onClose={() => setTab('approvals')}
+              onUserUpdated={() => {}}
+              languageOptions={languageOptions}
+              locale={locale}
+              setLocale={() => {}}
+              org={org}
+              onOrgUpdated={onOrgUpdated}
+              inline
+            />
+          )}
         </div>
       </div>
     </div>
@@ -837,6 +858,199 @@ function ScheduleManager({ user, t }) {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+// ─── Super Admin: Fellow Center Requests & Organizations ──────────────────
+function FellowCentersPanel() {
+  const [requests, setRequests] = useState([]);
+  const [orgs, setOrgs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [subTab, setSubTab] = useState('requests');
+  const [reviewNote, setReviewNote] = useState('');
+  const [actionId, setActionId] = useState(null);
+  const [msg, setMsg] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [rRes, oRes] = await Promise.all([
+        fetch('/api/organizations/setup-requests'),
+        fetch('/api/organizations')
+      ]);
+      if (rRes.ok) setRequests(await rRes.json());
+      if (oRes.ok) setOrgs(await oRes.json());
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleAction = async (id, action) => {
+    setMsg('');
+    try {
+      const res = await fetch(`/api/organizations/setup-requests/${id}/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewedBy: 'Super Admin', reviewNote })
+      });
+      const data = await res.json();
+      setMsg(data.msg || (res.ok ? 'Done.' : 'Error.'));
+      if (res.ok) { setActionId(null); setReviewNote(''); load(); }
+    } catch { setMsg('Network error.'); }
+  };
+
+  const cardStyle = { border: '1px solid var(--theme-soft-border)', borderRadius: 10, padding: '14px 18px', marginBottom: 14, background: 'var(--theme-surface)' };
+  const badgeStyle = (status) => ({
+    display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 700,
+    background: status === 'approved' || status === 'active' ? '#dcfce7' : status === 'rejected' || status === 'suspended' ? '#fee2e2' : '#fef9c3',
+    color: status === 'approved' || status === 'active' ? '#15803d' : status === 'rejected' || status === 'suspended' ? '#b91c1c' : '#854d0e'
+  });
+
+  return (
+    <div>
+      <h3 style={{ margin: '0 0 16px', color: 'var(--theme-text-strong)' }}>Fellow Centers</h3>
+      {msg && <div style={{ marginBottom: 12, padding: '8px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, color: '#15803d', fontSize: '0.875rem' }}>{msg}</div>}
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+        {['requests', 'organizations'].map(st => (
+          <button key={st} onClick={() => setSubTab(st)}
+            style={{ padding: '6px 16px', borderRadius: 20, border: '1px solid var(--theme-soft-border)', background: subTab === st ? 'var(--theme-primary)' : 'transparent', color: subTab === st ? '#fff' : 'var(--theme-text-strong)', cursor: 'pointer', fontWeight: subTab === st ? 700 : 400, fontSize: '0.875rem' }}>
+            {st === 'requests' ? `Setup Requests (${requests.filter(r => r.status === 'pending').length} pending)` : `Organizations (${orgs.length})`}
+          </button>
+        ))}
+      </div>
+
+      {loading && <p style={{ color: 'var(--theme-text-muted)' }}>Loading…</p>}
+
+      {!loading && subTab === 'requests' && (
+        requests.length === 0
+          ? <p style={{ color: 'var(--theme-text-muted)' }}>No setup requests yet.</p>
+          : requests.map(req => (
+            <div key={req._id} style={cardStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--theme-text-strong)' }}>{req.churchName}</div>
+                  <div style={{ fontSize: '0.82rem', color: '#6b7280', marginTop: 2 }}>
+                    {req.name} · {req.position} · {req.email}
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: '#6b7280' }}>{req.churchAddress} · {req.churchEnquiryPhone}</div>
+                  <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 4 }}>
+                    Submitted {new Date(req.createdAt).toLocaleDateString()}
+                    {req.wantsDedicatedDatabase && ' · Wants dedicated DB'}
+                    {req.wantsCustomDomain && ' · Wants custom domain'}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={badgeStyle(req.status)}>{req.status}</span>
+                  {req.passportPhoto && (
+                    <img src={req.passportPhoto} alt="passport" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, border: '1px solid #e5e7eb' }} />
+                  )}
+                  {req.churchLogo && (
+                    <img src={req.churchLogo} alt="logo" style={{ width: 44, height: 44, objectFit: 'contain', borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb' }} />
+                  )}
+                </div>
+              </div>
+
+              {req.status === 'pending' && (
+                <div style={{ marginTop: 12 }}>
+                  {actionId === req._id ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <input
+                        type="text"
+                        placeholder="Review note (optional)"
+                        value={reviewNote}
+                        onChange={e => setReviewNote(e.target.value)}
+                        style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.875rem' }}
+                      />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => handleAction(req._id, 'approve')} className="primary-btn" style={{ flex: 1, fontSize: '0.85rem', padding: '6px 0' }}>Approve &amp; Create Org</button>
+                        <button onClick={() => handleAction(req._id, 'reject')} style={{ flex: 1, fontSize: '0.85rem', padding: '6px 0', background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5', borderRadius: 5, cursor: 'pointer', fontWeight: 600 }}>Reject</button>
+                        <button onClick={() => { setActionId(null); setReviewNote(''); }} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #d1d5db', borderRadius: 5, cursor: 'pointer', fontSize: '0.85rem' }}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setActionId(req._id)} style={{ padding: '5px 14px', background: 'var(--theme-soft-bg)', border: '1px solid var(--theme-soft-border)', borderRadius: 5, cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--theme-text-strong)' }}>
+                      Review
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {req.status !== 'pending' && req.reviewNote && (
+                <div style={{ marginTop: 8, fontSize: '0.8rem', color: '#6b7280', fontStyle: 'italic' }}>Note: {req.reviewNote}</div>
+              )}
+            </div>
+          ))
+      )}
+
+      {!loading && subTab === 'organizations' && (
+        orgs.length === 0
+          ? <p style={{ color: 'var(--theme-text-muted)' }}>No organizations yet.</p>
+          : orgs.map(org => (
+            <div key={org._id} style={cardStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                  {org.logo && <img src={org.logo} alt="logo" style={{ width: 52, height: 52, objectFit: 'contain', borderRadius: 8, border: '1px solid #e5e7eb', flexShrink: 0 }} />}
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--theme-text-strong)' }}>{org.name}</div>
+                    <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: 2 }}>{org.address}</div>
+                    <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>Admin: {org.adminName} · {org.adminEmail}</div>
+                    <code style={{ fontSize: '0.72rem', color: '#9ca3af', background: '#f3f4f6', padding: '1px 5px', borderRadius: 3, display: 'inline-block', marginTop: 4 }}>{org.organization_id}</code>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={badgeStyle(org.status)}>{org.status}</span>
+                  {org.wantsDedicatedDatabase && <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 4 }}>Dedicated DB: {org.dedicatedDatabaseUri ? '✓ set' : '— awaiting URI'}</div>}
+                  {org.wantsCustomDomain && <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>Domain: {org.customDomain || '— awaiting'}</div>}
+                </div>
+              </div>
+            </div>
+          ))
+      )}
+    </div>
+  );
+}
+
+// ─── Super Admin: Admins list ─────────────────────────────────────────────
+function AdminsPanel() {
+  const [admins, setAdmins] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch('/api/users');
+        if (res.ok) {
+          const data = await res.json();
+          setAdmins(Array.isArray(data) ? data.filter(u => u.role === 'Admin') : []);
+        }
+      } catch { /* ignore */ }
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const cardStyle = { border: '1px solid var(--theme-soft-border)', borderRadius: 10, padding: '14px 18px', marginBottom: 12, background: 'var(--theme-surface)', display: 'flex', gap: 14, alignItems: 'flex-start' };
+
+  return (
+    <div>
+      <h3 style={{ margin: '0 0 16px', color: 'var(--theme-text-strong)' }}>Admins</h3>
+      {loading && <p style={{ color: 'var(--theme-text-muted)' }}>Loading…</p>}
+      {!loading && admins.length === 0 && <p style={{ color: 'var(--theme-text-muted)' }}>No Admin accounts found.</p>}
+      {admins.map(admin => (
+        <div key={admin._id} style={cardStyle}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, color: 'var(--theme-text-strong)' }}>{admin.name}</div>
+            <div style={{ fontSize: '0.82rem', color: '#6b7280' }}>{admin.email} · {admin.phone || '—'}</div>
+            <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 3 }}>
+              Joined {admin.createdAt ? new Date(admin.createdAt).toLocaleDateString() : '—'}
+              {' · '}Approval: {admin.approval?.status || 'pending'}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
