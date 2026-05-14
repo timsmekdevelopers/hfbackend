@@ -244,7 +244,7 @@ router.get('/mine', async (req, res) => {
 //       is silently ignored if an existing URI is already active.
 router.put('/:id/settings', async (req, res) => {
   try {
-    const { dedicatedDatabaseUri, customDomain, themeKey, logo, navbarItems, footerLinks } = req.body;
+    const { dedicatedDatabaseUri, customDomain, themeKey, logo, navbarItems, footerLinks, centerCustomName } = req.body;
     const org = await Organization.findById(req.params.id);
     if (!org) return res.status(404).json({ msg: 'Organization not found.' });
 
@@ -280,6 +280,9 @@ router.put('/:id/settings', async (req, res) => {
     }
     if (themeKey !== undefined) org.themeKey = themeKey;
     if (logo !== undefined) org.logo = logo;
+    if (centerCustomName !== undefined) {
+      org.centerCustomName = String(centerCustomName || '').trim().slice(0, 80) || 'Our Church Fellowship';
+    }
     if (Array.isArray(navbarItems)) {
       org.navbarItems = navbarItems.map(item => ({
         label: String(item.label || '').trim().slice(0, 80),
