@@ -4,11 +4,17 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const User = require('../models/User');
 const roles = require('../roles');
+const { sendPhoneVerificationEmail } = require('../emailService');
 
 const SALT_ROUNDS = 10;
 const EMAIL_VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const PHONE_VERIFICATION_CODE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const EMAIL_VERIFICATION_REQUIRED_ROLES = new Set([
   roles.BRANCH_PASTOR,
+  roles.STATE_PASTOR,
+  roles.ADMIN
+]);
+const PHONE_VERIFICATION_REQUIRED_ROLES = new Set([
   roles.STATE_PASTOR,
   roles.ADMIN
 ]);
@@ -41,8 +47,17 @@ function requiresEmailVerification(role) {
   return EMAIL_VERIFICATION_REQUIRED_ROLES.has(String(role || '').trim());
 }
 
+function requiresPhoneVerification(role) {
+  return PHONE_VERIFICATION_REQUIRED_ROLES.has(String(role || '').trim());
+}
+
 function generateEmailVerificationToken() {
   return crypto.randomBytes(24).toString('hex');
+}
+
+function generatePhoneVerificationCode() {
+  // 6-digit code for phone verification
+  return String(Math.floor(100000 + Math.random() * 900000));
 }
 
 async function findAssignedHfLeader({ country, state, city }) {
@@ -106,7 +121,9 @@ router.post('/register', async (req, res) => {
     const hashedSecurityAnswer = normalizedAnswer ? await hashValue(normalizedAnswer) : '';
     const isMember = String(role || '') === roles.MEMBER;
     const emailVerificationRequired = requiresEmailVerification(role);
+    const phoneVerificationRequired = requiresPhoneVerification(role);
     const emailVerificationToken = emailVerificationRequired ? generateEmailVerificationToken() : '';
+    const phoneVerificationCode = phoneVerificationRequired ? generatePhoneVerificationCode() : '';
 
     const now = new Date();
     const user = new User({
@@ -129,6 +146,10 @@ router.post('/register', async (req, res) => {
       emailVerified: !emailVerificationRequired,
       emailVerificationToken: emailVerificationRequired ? emailVerificationToken : undefined,
       emailVerificationTokenExpiresAt: emailVerificationRequired ? new Date(now.getTime() + EMAIL_VERIFICATION_TOKEN_TTL_MS) : undefined,
+      phoneVerificationRequired,
+      phoneVerified: !phoneVerificationRequired,
+      phoneVerificationCode: phoneVerificationRequired ? phoneVerificationCode : undefined,
+      phoneVerificationCodeExpiresAt: phoneVerificationRequired ? new Date(now.getTime() + PHONE_VERIFICATION_CODE_TTL_MS) : undefined,
       approved: isMember,
       approval: {
         status: isMember ? 'approved' : 'pending',
@@ -145,12 +166,29 @@ router.post('/register', async (req, res) => {
         },
         ...(emailVerificationRequired
           ? [{ message: 'Verify your email to enable password reset emails for your account.' }]
+          : []),
+        ...(phoneVerificationRequired
+          ? [{ message: 'Verify your phone number to enable critical account notifications.' }]
           : [])
       ],
       createdAt: now
     });
     await assignMemberLeaderFields(user);
     await user.save();
+
+    // Send phone verification email if required
+    if (phoneVerificationRequired) {
+      try {
+        await sendPhoneVerificationEmail({
+          email,
+          name,
+          verificationCode: phoneVerificationCode
+        });
+      } catch (emailErr) {
+        console.error('Failed to send phone verification email:', emailErr.message);
+        // Don't fail registration if email fails, just log it
+      }
+    }
 
     const safeUser = user.toObject();
     delete safeUser.password;
@@ -161,6 +199,7 @@ router.post('/register', async (req, res) => {
       user: safeUser,
       autoApproved: isMember,
       emailVerificationRequired,
+      phoneVerificationRequired,
       verificationToken: emailVerificationRequired ? emailVerificationToken : undefined
     });
   } catch (err) {
@@ -608,6 +647,148 @@ router.put('/:id', async (req, res) => {
     delete safeUser.password;
     delete safeUser.securityAnswer;
     res.json({ msg: 'Profile updated', user: safeUser });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
+// ─── Phone Verification Endpoints ─────────────────────────────────────────
+
+// POST /api/users/verify-phone/request
+// Request a phone verification code (called when user enters phone number)
+router.post('/verify-phone/request', async (req, res) => {
+  try {
+    const { userId, phone } = req.body;
+    if (!userId || !phone) {
+      return res.status(400).json({ msg: 'userId and phone are required' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    // Check if phone verification is required for this user's role
+    if (!requiresPhoneVerification(user.role)) {
+      return res.json({ msg: 'Phone verification is not required for this role.', phoneVerificationRequired: false });
+    }
+
+    if (user.phoneVerified) {
+      return res.json({ msg: 'Phone is already verified.', phoneVerified: true });
+    }
+
+    // Generate new verification code
+    const verificationCode = generatePhoneVerificationCode();
+    user.phoneVerificationCode = verificationCode;
+    user.phoneVerificationCodeExpiresAt = new Date(Date.now() + PHONE_VERIFICATION_CODE_TTL_MS);
+    user.phone = phone; // Update phone number
+    await user.save();
+
+    // Send verification code via email
+    try {
+      await sendPhoneVerificationEmail({
+        email: user.email,
+        name: user.name,
+        verificationCode
+      });
+    } catch (emailErr) {
+      console.error('Failed to send phone verification email:', emailErr.message);
+    }
+
+    res.json({
+      msg: 'Phone verification code sent to your email',
+      phoneVerificationRequired: true,
+      expiresIn: PHONE_VERIFICATION_CODE_TTL_MS / 1000 // seconds
+    });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
+// POST /api/users/verify-phone/confirm
+// Confirm phone verification with the code
+router.post('/verify-phone/confirm', async (req, res) => {
+  try {
+    const { userId, code } = req.body;
+    if (!userId || !code) {
+      return res.status(400).json({ msg: 'userId and code are required' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    // Check if code is expired
+    if (!user.phoneVerificationCodeExpiresAt || user.phoneVerificationCodeExpiresAt < new Date()) {
+      return res.status(410).json({ msg: 'Verification code has expired. Please request a new one.' });
+    }
+
+    // Verify code
+    if (String(user.phoneVerificationCode) !== String(code)) {
+      return res.status(401).json({ msg: 'Invalid verification code' });
+    }
+
+    // Mark phone as verified
+    user.phoneVerified = true;
+    user.phoneVerificationRequired = false;
+    user.phoneVerificationCode = undefined;
+    user.phoneVerificationCodeExpiresAt = undefined;
+    user.phoneVerifiedAt = new Date();
+    await user.save();
+
+    res.json({
+      msg: 'Phone verified successfully',
+      phoneVerified: true
+    });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
+// POST /api/users/verify-phone/resend
+// Resend phone verification code
+router.post('/verify-phone/resend', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ msg: 'userId is required' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    if (!requiresPhoneVerification(user.role)) {
+      return res.json({ msg: 'Phone verification is not required for this role.', phoneVerificationRequired: false });
+    }
+
+    if (user.phoneVerified) {
+      return res.json({ msg: 'Phone is already verified.', phoneVerified: true });
+    }
+
+    // Generate new verification code
+    const verificationCode = generatePhoneVerificationCode();
+    user.phoneVerificationCode = verificationCode;
+    user.phoneVerificationCodeExpiresAt = new Date(Date.now() + PHONE_VERIFICATION_CODE_TTL_MS);
+    await user.save();
+
+    // Send verification code via email
+    try {
+      await sendPhoneVerificationEmail({
+        email: user.email,
+        name: user.name,
+        verificationCode
+      });
+    } catch (emailErr) {
+      console.error('Failed to send phone verification email:', emailErr.message);
+    }
+
+    res.json({
+      msg: 'Phone verification code resent to your email',
+      expiresIn: PHONE_VERIFICATION_CODE_TTL_MS / 1000 // seconds
+    });
   } catch (err) {
     res.status(500).json({ msg: err.message });
   }

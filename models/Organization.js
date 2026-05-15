@@ -20,7 +20,6 @@ const organizationSchema = new mongoose.Schema({
   // Branding / appearance chosen by Admin
   themeKey: { type: String, default: 'default' }, // matches THEMES key on frontend
   centerCustomName: { type: String, default: 'Our Church Fellowship' }, // customizable center name
-  centerSubdomain: { type: String },
 
   // Infrastructure preferences
   wantsDedicatedDatabase: { type: Boolean, default: false },

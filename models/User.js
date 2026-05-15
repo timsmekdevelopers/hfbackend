@@ -32,6 +32,11 @@ const userSchema = new mongoose.Schema({
   emailVerificationToken: { type: String },
   emailVerificationTokenExpiresAt: { type: Date },
   emailVerifiedAt: { type: Date },
+  phoneVerificationRequired: { type: Boolean, default: false },
+  phoneVerified: { type: Boolean, default: false },
+  phoneVerificationCode: { type: String },
+  phoneVerificationCodeExpiresAt: { type: Date },
+  phoneVerifiedAt: { type: Date },
   attendanceCredits: { type: Number, default: 0 },
   attendanceHistory: [
     {

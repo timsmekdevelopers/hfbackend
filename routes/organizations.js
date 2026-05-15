@@ -7,113 +7,7 @@ const FellowCenterSetupRequest = require('../models/FellowCenterSetupRequest');
 const Organization = require('../models/Organization');
 const { evictOrgConnection } = require('../orgDb');
 const { validateUri, migrateOrgDb } = require('../orgMigration');
-
-const OFFICIAL_DOMAIN = 'ourchurchfellowship.org';
-
-function normalizeSubdomain(value) {
-  return String(value || '')
-    .toLowerCase()
-    .trim()
-    .replace(/^https?:\/\//, '')
-    .replace(/^www\./, '')
-    .replace(new RegExp(`\\.?${OFFICIAL_DOMAIN.replace(/\./g, '\\.')}$`), '')
-    .replace(/[^a-z0-9-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 63);
-}
-
-function extractTokens(value) {
-  const cleaned = String(value || '')
-    .toLowerCase()
-    .trim()
-    .replace(/^https?:\/\//, '')
-    .replace(/^www\./, '')
-    .replace(/\.ourchurchfellowship\.org$/, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-
-  return cleaned ? cleaned.split(/\s+/).filter(Boolean) : [];
-}
-
-function stripCommonSuffixes(value) {
-  const suffixes = ['ministries', 'ministry', 'church', 'fellowship', 'center', 'centre', 'commission', 'assembly', 'chapel', 'worship', 'house'];
-  for (const suffix of suffixes) {
-    if (value.endsWith(suffix) && value.length > suffix.length + 2) {
-      return value.slice(0, -suffix.length).replace(/-+$/g, '');
-    }
-  }
-  return value;
-}
-
-function uniqueList(values) {
-  return [...new Set(values.filter(Boolean))];
-}
-
-function candidateSubdomains(value) {
-  const normalized = normalizeSubdomain(value);
-  const tokens = extractTokens(value);
-  const base = stripCommonSuffixes(normalized) || normalized;
-  const first = tokens[0] || normalized;
-  const last = tokens[tokens.length - 1] || normalized;
-  const acronym = tokens.map((token) => token[0]).join('');
-  const shortWords = tokens.map((token) => token.slice(0, 3)).join('');
-
-  return uniqueList([
-    base,
-    first,
-    `${first}${last}`,
-    acronym,
-    shortWords,
-    `${base}hub`,
-    `${base}connect`,
-    `${base}ministry`,
-    `${base}church`,
-    `${base}online`,
-    `${base}global`,
-    `my${base}`,
-    `the${base}`,
-    `${acronym}hub`,
-    `${acronym}ministry`
-  ].map(normalizeSubdomain));
-}
-
-async function isSubdomainTaken(subdomain) {
-  const fullDomain = `${subdomain}.${OFFICIAL_DOMAIN}`;
-  const [orgTaken, requestTaken] = await Promise.all([
-    Organization.exists({ $or: [{ centerSubdomain: subdomain }, { customDomain: fullDomain }] }),
-    FellowCenterSetupRequest.exists({ requestedSubdomain: subdomain, status: { $in: ['pending', 'approved'] } })
-  ]);
-
-  return Boolean(orgTaken || requestTaken);
-}
-
-async function buildAvailableSuggestions(value, currentSubdomain) {
-  const candidates = candidateSubdomains(value).filter((candidate) => candidate !== currentSubdomain);
-  const available = [];
-  const seen = new Set();
-
-  for (const candidate of candidates) {
-    if (seen.has(candidate)) continue;
-    seen.add(candidate);
-    if (!(await isSubdomainTaken(candidate))) {
-      available.push({ subdomain: candidate, fullDomain: `${candidate}.${OFFICIAL_DOMAIN}` });
-    }
-    if (available.length === 4) return available;
-  }
-
-  const base = currentSubdomain || normalizeSubdomain(value) || 'ministry';
-  for (let i = 1; available.length < 4 && i <= 20; i += 1) {
-    const candidate = normalizeSubdomain(`${base}${i}`);
-    if (!candidate || candidate === currentSubdomain || seen.has(candidate)) continue;
-    seen.add(candidate);
-    if (!(await isSubdomainTaken(candidate))) {
-      available.push({ subdomain: candidate, fullDomain: `${candidate}.${OFFICIAL_DOMAIN}` });
-    }
-  }
-
-  return available;
-}
+const { sendOCFCodeEmail } = require('../emailService');
 
 // ─── Domain verification helpers ─────────────────────────────────────────────
 
@@ -187,19 +81,12 @@ router.post('/setup-request', async (req, res) => {
     const {
       name, email, phone, address, position, passportPhoto,
       churchName, churchLogo, churchAddress, churchEnquiryPhone,
-      requestedSubdomain, wantsDedicatedDatabase, wantsCustomDomain
+      wantsDedicatedDatabase, wantsCustomDomain
     } = req.body;
 
-    const normalizedRequestedSubdomain = normalizeSubdomain(requestedSubdomain);
-
     if (!name || !email || !phone || !address || !position ||
-        !churchName || !churchAddress || !churchEnquiryPhone || !normalizedRequestedSubdomain) {
+        !churchName || !churchAddress || !churchEnquiryPhone) {
       return res.status(400).json({ msg: 'Please fill in all required fields.' });
-    }
-
-    if (await isSubdomainTaken(normalizedRequestedSubdomain)) {
-      const suggestions = await buildAvailableSuggestions(normalizedRequestedSubdomain, normalizedRequestedSubdomain);
-      return res.status(409).json({ msg: 'That URL has already been taken.', taken: true, suggestions });
     }
 
     // Reject if a pending/approved request already exists for this email
@@ -214,7 +101,6 @@ router.post('/setup-request', async (req, res) => {
     const request = new FellowCenterSetupRequest({
       name, email, phone, address, position, passportPhoto,
       churchName, churchLogo, churchAddress, churchEnquiryPhone,
-      requestedSubdomain: normalizedRequestedSubdomain,
       wantsDedicatedDatabase: Boolean(wantsDedicatedDatabase),
       wantsCustomDomain: Boolean(wantsCustomDomain)
     });
@@ -248,18 +134,27 @@ router.post('/setup-requests/:id/approve', async (req, res) => {
       return res.status(400).json({ msg: 'Request has already been reviewed.' });
     }
 
-    const organization_id = crypto.randomUUID();
-    const approvedSubdomain = normalizeSubdomain(request.requestedSubdomain);
-    const approvedHost = approvedSubdomain ? `${approvedSubdomain}.${OFFICIAL_DOMAIN}` : '';
+
+    // Generate a unique 5-character alphanumeric OCF code (A-Z, 0-9)
+    async function generateUniqueOCFCode() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let code;
+      let exists = true;
+      while (exists) {
+        code = Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+        // Check case-insensitively
+        exists = await Organization.exists({ organization_id: new RegExp('^' + code + '$', 'i') });
+      }
+      return code;
+    }
+
+    const organization_id = await generateUniqueOCFCode();
     const org = new Organization({
       organization_id,
       name: request.churchName,
       logo: request.churchLogo,
       address: request.churchAddress,
       enquiryPhone: request.churchEnquiryPhone,
-      centerSubdomain: approvedSubdomain,
-      customDomain: approvedHost,
-      customDomainVerified: Boolean(approvedHost),
       adminName: request.name,
       adminEmail: request.email,
       adminPhone: request.phone,
@@ -280,6 +175,18 @@ router.post('/setup-requests/:id/approve', async (req, res) => {
     request.reviewNote = reviewNote || '';
     request.organizationId = org._id;
     await request.save();
+
+    // Send OCF Code via email
+    try {
+      await sendOCFCodeEmail({
+        email: request.email,
+        organizationName: request.churchName,
+        ocfCode: organization_id
+      });
+    } catch (emailErr) {
+      console.error('Failed to send OCF code email:', emailErr.message);
+      // Don't fail the approval if email fails, just log it
+    }
 
     res.json({ msg: 'Setup request approved. Organization created.', organization: org, request });
   } catch (err) {
@@ -329,19 +236,11 @@ router.get('/by-domain', async (req, res) => {
     const { hostname } = req.query;
     if (!hostname) return res.status(400).json({ msg: 'hostname query param required.' });
 
-    const normalizedHostname = hostname.toLowerCase().trim();
-    const subdomain = normalizedHostname.endsWith(`.${OFFICIAL_DOMAIN}`)
-      ? normalizedHostname.slice(0, -(`.${OFFICIAL_DOMAIN}`.length))
-      : '';
-
     // Only return branding-safe fields — never expose secrets like dedicatedDatabaseUri
-    const org = await Organization.findOne({
-      status: 'active',
-      $or: [
-        { customDomain: normalizedHostname },
-        ...(subdomain ? [{ centerSubdomain: subdomain }] : [])
-      ]
-    }, 'name centerCustomName logo address enquiryPhone themeKey organization_id centerSubdomain customDomain');
+    const org = await Organization.findOne(
+      { customDomain: hostname.toLowerCase().trim(), status: 'active' },
+      'name logo address enquiryPhone themeKey organization_id'
+    );
 
     if (!org) return res.status(404).json({ msg: 'No active organization found for this domain.' });
     res.json(org);
@@ -350,27 +249,27 @@ router.get('/by-domain', async (req, res) => {
   }
 });
 
-// ─── GET /api/organizations/url-availability ─────────────────────────────
-// Public — check whether a requested official subdomain is available.
-router.get('/url-availability', async (req, res) => {
+// ─── GET /api/organizations/by-ocf-code ──────────────────────────────────
+// Public — look up an active org by its 5-character OCF code (case-insensitive).
+// Used by the frontend landing page to load org branding from the OCF code.
+router.get('/by-ocf-code', async (req, res) => {
   try {
-    const normalized = normalizeSubdomain(req.query.subdomain || req.query.url);
-    if (!normalized) {
-      return res.status(400).json({ msg: 'subdomain query param required.' });
+    const { code } = req.query;
+    if (!code) return res.status(400).json({ msg: 'code query param required.' });
+
+    // Sanitize: OCF codes are strictly alphanumeric (A-Z, 0-9), max 5 chars
+    const sanitized = String(code).trim().toUpperCase();
+    if (!/^[A-Z0-9]{1,5}$/.test(sanitized)) {
+      return res.status(400).json({ msg: 'Invalid OCF Code format.' });
     }
 
-    const fullDomain = `${normalized}.${OFFICIAL_DOMAIN}`;
-    const available = !(await isSubdomainTaken(normalized));
-    const suggestions = await buildAvailableSuggestions(normalized, normalized);
+    const org = await Organization.findOne(
+      { organization_id: new RegExp('^' + sanitized + '$', 'i'), status: 'active' },
+      'name logo address enquiryPhone themeKey organization_id'
+    );
 
-    res.json({
-      available,
-      taken: !available,
-      subdomain: normalized,
-      fullDomain,
-      officialDomain: OFFICIAL_DOMAIN,
-      suggestions
-    });
+    if (!org) return res.status(404).json({ msg: 'No organization found with that OCF Code.' });
+    res.json(org);
   } catch (err) {
     res.status(500).json({ msg: err.message });
   }
