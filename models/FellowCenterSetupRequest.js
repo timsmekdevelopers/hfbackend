@@ -14,6 +14,7 @@ const fellowCenterSetupRequestSchema = new mongoose.Schema({
   churchLogo: { type: String },                   // base64 data URL
   churchAddress: { type: String, required: true },
   churchEnquiryPhone: { type: String, required: true },
+  requestedSubdomain: { type: String, required: true },
 
   // Infrastructure preferences
   wantsDedicatedDatabase: { type: Boolean, default: false },
