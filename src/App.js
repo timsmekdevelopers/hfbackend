@@ -42,7 +42,7 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
       const data = await res.json();
       if (!res.ok) {
         setStatus('error');
-        setMessage(data.msg || 'Organization not found.');
+        setMessage('No Church found with that OCF Code.');
         return;
       }
       setStatus('success');
@@ -90,8 +90,8 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
                   padding: '12px 20px',
                   borderRadius: 10,
                   border: 'none',
-                  background: '#fff',
-                  color: 'var(--theme-primary)',
+                  background: '#4169e1',
+                  color: '#fff',
                   fontWeight: 800,
                   fontSize: '1rem',
                   cursor: code.trim().length === 0 || status === 'loading' ? 'not-allowed' : 'pointer',
