@@ -25,9 +25,102 @@ function Dialog({ open, onClose, children }) {
 }
 
 // ─── Landing page: choose path ────────────────────────────────────────────
-function LandingChooser({ onChoosePastor, onChooseMember }) {
+function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
+  const [code, setCode] = useState('');
+  const [status, setStatus] = useState(null); // null | 'loading' | 'success' | 'error'
+  const [message, setMessage] = useState('');
+  const isDefaultHost = DEFAULT_HOSTS.has(window.location.hostname);
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed) return;
+    setStatus('loading');
+    setMessage('');
+    try {
+      const res = await fetch(`/api/organizations/by-ocf-code?code=${encodeURIComponent(trimmed)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setStatus('error');
+        setMessage(data.msg || 'Organization not found.');
+        return;
+      }
+      setStatus('success');
+      setMessage(`Opening ${data.name}…`);
+      onOCFFound(data);
+    } catch {
+      setStatus('error');
+      setMessage('Failed to find organization. Please try again.');
+    }
+  };
+
   return (
     <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '0 8px' }}>
+      {/* OCF Code entry — only shown on the default (home) host */}
+      {isDefaultHost && (
+        <div style={{ marginBottom: 28 }}>
+          <form onSubmit={handleSearch}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+              <input
+                type="text"
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 5))}
+                placeholder="Enter OCF Code (e.g. AB1CD)"
+                maxLength={5}
+                style={{
+                  flex: 1,
+                  padding: '12px 14px',
+                  borderRadius: 10,
+                  border: '2px solid rgba(255,255,255,0.5)',
+                  background: 'rgba(255,255,255,0.95)',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  letterSpacing: 3,
+                  textTransform: 'uppercase',
+                  outline: 'none',
+                  color: '#1e3a5f'
+                }}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <button
+                type="submit"
+                disabled={status === 'loading' || code.trim().length === 0}
+                style={{
+                  padding: '12px 20px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: '#fff',
+                  color: 'var(--theme-primary)',
+                  fontWeight: 800,
+                  fontSize: '1rem',
+                  cursor: code.trim().length === 0 || status === 'loading' ? 'not-allowed' : 'pointer',
+                  opacity: code.trim().length === 0 || status === 'loading' ? 0.6 : 1
+                }}
+              >
+                {status === 'loading' ? '…' : 'Go →'}
+              </button>
+            </div>
+          </form>
+          {message && (
+            <div style={{
+              marginTop: 10,
+              padding: '8px 14px',
+              borderRadius: 8,
+              background: status === 'error' ? 'rgba(198,40,40,0.15)' : 'rgba(46,125,50,0.15)',
+              color: status === 'error' ? '#ffcdd2' : '#c8e6c9',
+              fontWeight: 600,
+              fontSize: '0.9rem'
+            }}>
+              {message}
+            </div>
+          )}
+          <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem', marginTop: 10 }}>
+            Enter your church's OCF Code to load its page
+          </div>
+        </div>
+      )}
+
       <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.85)', marginBottom: 28, fontSize: '1rem' }}>
         Welcome. How would you like to proceed?
       </p>
@@ -197,6 +290,11 @@ function App() {
                 <div style={{ fontWeight: 800, fontSize: '1.15rem', color: 'var(--theme-text-strong)' }}>{org.name}</div>
                 {org.address && <div style={{ fontSize: '0.82rem', color: '#6b7280', marginTop: 2 }}>{org.address}</div>}
                 <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 1 }}>Our Church Fellowship Admin</div>
+                {org.organization_id && (
+                  <div style={{ marginTop: 6, display: 'inline-block', background: 'var(--theme-primary)', color: '#fff', borderRadius: 6, padding: '2px 10px', fontSize: '0.82rem', fontWeight: 700, letterSpacing: 2 }}>
+                    OCF Code: {org.organization_id}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -209,6 +307,13 @@ function App() {
             <b>Name:</b> {user.name}<br />
             <b>Email:</b> {user.email}<br />
             <b>Role:</b> {user.role}
+            {user.organization_id && !org && user.role !== 'HF Leader' && (
+              <div style={{ marginTop: 10 }}>
+                <span style={{ display: 'inline-block', background: 'var(--theme-primary)', color: '#fff', borderRadius: 6, padding: '3px 12px', fontSize: '0.82rem', fontWeight: 700, letterSpacing: 2 }}>
+                  OCF Code: {user.organization_id.toUpperCase()}
+                </span>
+              </div>
+            )}
           </div>
           {/* Show approval panel only when the approver role has been approved */}
           {['Branch Pastor', 'State Pastor', 'Admin'].includes(user.role) && user.approval?.status === 'approved' && (
@@ -283,6 +388,10 @@ function App() {
       <LandingChooser
         onChoosePastor={() => setScreen('pastor-setup')}
         onChooseMember={() => setScreen('login')}
+        onOCFFound={(data) => {
+          setOrg(data);
+          applyTheme(data.themeKey || 'default');
+        }}
       />
     );
   };

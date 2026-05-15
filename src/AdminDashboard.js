@@ -18,7 +18,7 @@ const TABS = [
   { id: 'post-manual', labelKey: 'adminTabPostManual', roles: ['Branch Pastor', 'State Pastor', 'Admin'] },
   { id: 'post-guide', labelKey: 'adminTabPostGuide', roles: ['Branch Pastor', 'State Pastor', 'Admin'] },
   { id: 'stats', labelKey: 'adminTabStats', roles: ['Branch Pastor', 'State Pastor', 'Admin'] },
-  { id: 'fellow-centers', label: 'Fellow Centers', roles: ['Super Admin'] },
+  { id: 'fellow-centers', label: 'Our Church Fellowship', roles: ['Super Admin'] },
   { id: 'admins', label: 'Admins', roles: ['Super Admin'] },
   { id: 'settings', label: 'Settings', roles: ['Branch Pastor', 'State Pastor', 'Admin'] }
 ];
@@ -36,10 +36,15 @@ export default function AdminDashboard({ user, languageOptions, locale, org, onO
 
   return (
     <div style={{ width: '100%', border: '1px solid var(--theme-soft-border)', borderRadius: 10, overflow: 'hidden', marginTop: 16 }}>
-      <div style={{ background: 'transparent', padding: '12px 20px' }}>
+      <div style={{ background: 'transparent', padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <h2 style={{ margin: 0, color: 'var(--theme-text-strong)', fontSize: '1.1rem', fontWeight: 600 }}>
           {user?.role === 'Super Admin' ? 'Super Admin Dashboard' : 'Admin Dashboard'}
         </h2>
+        {user?.role !== 'Super Admin' && (user?.organization_id || org?.organization_id) && (
+          <span style={{ background: 'var(--theme-primary)', color: '#fff', borderRadius: 6, padding: '3px 12px', fontSize: '0.82rem', fontWeight: 700, letterSpacing: 2 }}>
+            OCF Code: {(org?.organization_id || user?.organization_id || '').toUpperCase()}
+          </span>
+        )}
       </div>
 
       {user?.role !== 'Super Admin' && (
@@ -910,7 +915,7 @@ function FellowCentersPanel() {
 
   return (
     <div>
-      <h3 style={{ margin: '0 0 16px', color: 'var(--theme-text-strong)' }}>Fellow Centers</h3>
+      <h3 style={{ margin: '0 0 16px', color: 'var(--theme-text-strong)' }}>Our Church Fellowship</h3>
       {msg && <div style={{ marginBottom: 12, padding: '8px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, color: '#15803d', fontSize: '0.875rem' }}>{msg}</div>}
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>

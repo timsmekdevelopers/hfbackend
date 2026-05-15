@@ -345,9 +345,10 @@ function OrgSettingsSection({ user, labelStyle, inputStyle, onOrgUpdated, extern
   const [msg, setMsg] = useState('');
   const logoInputRef = React.useRef();
 
-  // Navbar & footer link management
+  // Navbar & footer link management + center name
   const [navbarItems, setNavbarItems] = useState(externalOrg?.navbarItems || []);
   const [footerLinks, setFooterLinks] = useState(externalOrg?.footerLinks || []);
+  const [centerCustomName, setCenterCustomName] = useState(externalOrg?.centerCustomName || 'Our Church Fellowship');
   const [newNavLabel, setNewNavLabel] = useState('');
   const [newNavHref, setNewNavHref] = useState('');
   const [newFooterLabel, setNewFooterLabel] = useState('');
@@ -381,6 +382,7 @@ function OrgSettingsSection({ user, labelStyle, inputStyle, onOrgUpdated, extern
       setDomainVerifyMsg('');
       setNavbarItems(externalOrg.navbarItems || []);
       setFooterLinks(externalOrg.footerLinks || []);
+      setCenterCustomName(externalOrg.centerCustomName || 'Our Church Fellowship');
     }
   }, [externalOrg]);
 
@@ -396,6 +398,9 @@ function OrgSettingsSection({ user, labelStyle, inputStyle, onOrgUpdated, extern
           setLogo(data.logo || '');
           setOrgThemeKey(data.themeKey || 'default');
           setFirstTimeUri(data.dedicatedDatabaseUri || '');
+          setNavbarItems(data.navbarItems || []);
+          setFooterLinks(data.footerLinks || []);
+          setCenterCustomName(data.centerCustomName || 'Our Church Fellowship');
         }
       } catch { /* no org yet */ }
       setLoading(false);
@@ -553,7 +558,7 @@ function OrgSettingsSection({ user, labelStyle, inputStyle, onOrgUpdated, extern
       const res = await fetch(`/api/organizations/${org._id}/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customDomain: domain, themeKey: orgThemeKey, logo, navbarItems, footerLinks })
+        body: JSON.stringify({ customDomain: domain, themeKey: orgThemeKey, logo, navbarItems, footerLinks, centerCustomName })
       });
       const data = await res.json();
       if (res.ok) {
@@ -630,11 +635,27 @@ function OrgSettingsSection({ user, labelStyle, inputStyle, onOrgUpdated, extern
             <input ref={logoInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleLogoFile} style={{ display: 'none' }} />
           </div>
 
+          {/* ── Center / Org Name ── */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={labelStyle}>Organization Name (displayed to members)</label>
+            <input
+              style={{ ...inputStyle, marginBottom: 8 }}
+              type="text"
+              maxLength={80}
+              value={centerCustomName}
+              onChange={e => setCenterCustomName(e.target.value)}
+              placeholder="e.g. Grace Gospel Church - Our Church Fellowship"
+            />
+            <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+              This name appears in the header and footer of your organization's pages. Defaults to "Our Church Fellowship".
+            </div>
+          </div>
+
           {/* ── Color Theme ── */}
           <div style={{ marginBottom: 20 }}>
             <label style={labelStyle}>Organization Color Theme</label>
             <div style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: 8 }}>
-              This color theme will be applied for all users of your Fellow Center.
+              This color theme will be applied for all users of your Our Church Fellowship.
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
               {THEMES.map(theme => (
