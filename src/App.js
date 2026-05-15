@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import './App.css';
-import LoginForm from './LoginForm';
-import RegisterForm from './RegisterForm';
-import FellowCenterSetupForm from './FellowCenterSetupForm';
-import ApprovalStatus from './ApprovalStatus';
-import ApprovalPanel from './ApprovalPanel';
-import AdminDashboard from './AdminDashboard';
-import { applyTheme } from './SettingsPanel';
+import { applyTheme } from './themeUtils';
 import AppFooter from './AppFooter';
 import OrgNavbar from './OrgNavbar';
+
+const LoginForm = lazy(() => import('./LoginForm'));
+const RegisterForm = lazy(() => import('./RegisterForm'));
+const FellowCenterSetupForm = lazy(() => import('./FellowCenterSetupForm'));
+const ApprovalStatus = lazy(() => import('./ApprovalStatus'));
+const ApprovalPanel = lazy(() => import('./ApprovalPanel'));
+const AdminDashboard = lazy(() => import('./AdminDashboard'));
 
 function Dialog({ open, onClose, children }) {
   if (!open) return null;
@@ -400,6 +401,7 @@ function App() {
     <div className="App">
       <OrgNavbar org={org} />
       <header className="App-header">
+        <Suspense fallback={<div style={{ color: '#fff', opacity: 0.8 }}>Loading...</div>}>
         {/* When accessed via a custom org domain, replace the default logo/title
             with the organization's own branding. On the default host this section
             is hidden and the generic logo below shows instead. */}
@@ -446,6 +448,7 @@ function App() {
             Login
           </button>
         </Dialog>
+        </Suspense>
       </header>
       <AppFooter org={org} />
     </div>

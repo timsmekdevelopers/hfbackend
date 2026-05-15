@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import ApprovalPanel from './ApprovalPanel';
-import HFRichTextEditor from './HFRichTextEditor';
 import { useTranslation } from './i18n';
 import SettingsPanel from './SettingsPanel';
+
+const HFRichTextEditor = lazy(() => import('./HFRichTextEditor'));
 
 function getAdminDocumentLanguageStorageKey(userId) {
   return `hf_admin_documents_locale_${userId || 'guest'}`;
@@ -388,7 +389,9 @@ function DocumentComposer({ user, t, type }) {
           />
         </div>
 
-        <HFRichTextEditor value={contentHtml} onChange={setContentHtml} minHeight={260} />
+        <Suspense fallback={<div style={{ padding: 10, border: '1px solid var(--theme-soft-border)', borderRadius: 8, color: 'var(--theme-text-muted)' }}>Loading editor...</div>}>
+          <HFRichTextEditor value={contentHtml} onChange={setContentHtml} minHeight={260} />
+        </Suspense>
 
         <div>
           <button className="primary-btn" disabled={loading}>
