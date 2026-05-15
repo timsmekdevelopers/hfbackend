@@ -52,7 +52,7 @@ function LandingChooser({ onChoosePastor, onChooseMember }) {
             I am a Senior Pastor / Visioner
           </div>
           <div style={{ fontSize: '0.875rem', color: '#6b7280', lineHeight: 1.5 }}>
-            Register your Church or Commission and request a dedicated Fellow Center for your organization.
+            Register your Church or Commission to access Our Church Fellowship for your organization.
           </div>
         </button>
 
@@ -91,7 +91,7 @@ function SetupRequestSuccess({ onBack }) {
       <div style={{ fontSize: 52, marginBottom: 16 }}>✅</div>
       <h2 style={{ color: '#fff', margin: '0 0 12px', fontSize: '1.4rem' }}>Request Submitted!</h2>
       <p style={{ color: 'rgba(255,255,255,0.85)', lineHeight: 1.6, marginBottom: 28 }}>
-        Your Fellow Center Setup Request has been received. Our team will review it and get in touch with you
+        Your Our Church Fellowship Setup Request has been received. Our team will review it and get in touch with you
         at the email address you provided. This may take a few business days.
       </p>
       <button
@@ -196,7 +196,7 @@ function App() {
               <div>
                 <div style={{ fontWeight: 800, fontSize: '1.15rem', color: 'var(--theme-text-strong)' }}>{org.name}</div>
                 {org.address && <div style={{ fontSize: '0.82rem', color: '#6b7280', marginTop: 2 }}>{org.address}</div>}
-                <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 1 }}>Fellow Center Admin</div>
+                <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 1 }}>Our Church Fellowship Admin</div>
               </div>
             </div>
           )}
@@ -226,12 +226,10 @@ function App() {
     // ── Senior Pastor — Fellow Center Setup form ──
     if (screen === 'pastor-setup') {
       return (
-        <div style={{ background: '#fff', borderRadius: 12, padding: '28px 24px', width: '100%', maxWidth: 580, overflowY: 'auto', maxHeight: '85vh' }}>
-          <FellowCenterSetupForm
-            onBack={() => setScreen('landing')}
-            onSubmitted={() => setScreen('pastor-success')}
-          />
-        </div>
+        <FellowCenterSetupForm
+          onBack={() => setScreen('landing')}
+          onSubmitted={() => setScreen('pastor-success')}
+        />
       );
     }
 
