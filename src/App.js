@@ -1,4 +1,4 @@
-import React, { useEffect, useState, lazy, Suspense } from 'react';
+import React, { useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import './App.css';
 import { applyTheme } from './themeUtils';
 import AppFooter from './AppFooter';
@@ -216,6 +216,24 @@ function App() {
   const [user, setUser] = useState(null);
   const [org, setOrg] = useState(null); // organization linked to Admin user
 
+  const logoStars = useMemo(() => {
+    const randomBetween = (min, max) => Math.random() * (max - min) + min;
+    return Array.from({ length: 10 }, (_, index) => {
+      const angle = randomBetween(0, Math.PI * 2);
+      const radius = randomBetween(40, 72);
+      const x = 50 + Math.cos(angle) * radius;
+      const y = 50 + Math.sin(angle) * radius;
+      return {
+        id: index,
+        x,
+        y,
+        size: randomBetween(0.8, 1.35),
+        delay: randomBetween(0, 3.5),
+        duration: randomBetween(2.8, 5.2)
+      };
+    });
+  }, []);
+
   // Fetch org when an Admin logs in or org is updated
   const fetchOrg = async (email) => {
     try {
@@ -422,10 +440,21 @@ function App() {
         ) : (
           <>
             <div className="App-logo-wrap" aria-hidden="true">
-              <span className="App-logo-star App-logo-star-a">✦</span>
-              <span className="App-logo-star App-logo-star-b">✦</span>
-              <span className="App-logo-star App-logo-star-c">✦</span>
-              <span className="App-logo-star App-logo-star-d">✦</span>
+              {logoStars.map((star) => (
+                <span
+                  key={star.id}
+                  className="App-logo-star"
+                  style={{
+                    left: `${star.x}%`,
+                    top: `${star.y}%`,
+                    fontSize: `${star.size}rem`,
+                    animationDelay: `${star.delay}s`,
+                    animationDuration: `${star.duration}s`
+                  }}
+                >
+                  ✦
+                </span>
+              ))}
               <img src={process.env.PUBLIC_URL + '/OCF-logo.png'} alt="Our Church Fellowship Logo" className="App-logo" />
             </div>
             <h1>Our Church Fellowship</h1>

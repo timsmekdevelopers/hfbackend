@@ -123,35 +123,11 @@ body, html, #root, .App {
   position: absolute;
   color: #fff6c7;
   text-shadow: 0 0 10px rgba(255, 241, 181, 0.9), 0 0 20px rgba(255, 241, 181, 0.55);
-  font-size: 1.1rem;
   line-height: 1;
   opacity: 0;
+  transform: translate(-50%, -50%);
   animation: starFlash 3.6s ease-in-out infinite;
   z-index: 3;
-}
-
-.App-logo-star-a {
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.App-logo-star-b {
-  right: -8px;
-  top: 28%;
-  animation-delay: 0.7s;
-}
-
-.App-logo-star-c {
-  left: -10px;
-  bottom: 24%;
-  animation-delay: 1.4s;
-}
-
-.App-logo-star-d {
-  bottom: -8px;
-  right: 20%;
-  animation-delay: 2.1s;
 }
 
 .App-header h1 {
