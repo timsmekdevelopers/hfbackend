@@ -421,7 +421,13 @@ function App() {
           </div>
         ) : (
           <>
-            <img src={process.env.PUBLIC_URL + '/OCF-logo.png'} alt="Our Church Fellowship Logo" className="App-logo" />
+            <div className="App-logo-wrap" aria-hidden="true">
+              <span className="App-logo-star App-logo-star-a">✦</span>
+              <span className="App-logo-star App-logo-star-b">✦</span>
+              <span className="App-logo-star App-logo-star-c">✦</span>
+              <span className="App-logo-star App-logo-star-d">✦</span>
+              <img src={process.env.PUBLIC_URL + '/OCF-logo.png'} alt="Our Church Fellowship Logo" className="App-logo" />
+            </div>
             <h1>Our Church Fellowship</h1>
           </>
         )}
