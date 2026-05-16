@@ -421,7 +421,7 @@ function App() {
           </div>
         ) : (
           <>
-            <img src={process.env.PUBLIC_URL + '/smhos-logo.png'} alt="Our Church Fellowship Logo" className="App-logo" />
+            <img src={process.env.PUBLIC_URL + '/OCF-logo.png'} alt="Our Church Fellowship Logo" className="App-logo" />
             <h1>Our Church Fellowship</h1>
           </>
         )}
