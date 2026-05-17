@@ -64,64 +64,53 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
             <span className="typewriter">Enter OCF Code</span>
           </div>
           <form onSubmit={handleSearch}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-              <input
-                type="text"
-                value={code}
-                onChange={e => setCode(e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 5))}
-                placeholder="E.g. AB1CD"
-                maxLength={5}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+              <div style={{ position: 'relative', width: '50%' }}>
+                <input
+                  type="text"
+                  value={code}
+                  onChange={e => setCode(e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 5))}
+                  placeholder="E.g. AB1CD"
+                  maxLength={5}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    border: '2px solid rgba(255,255,255,0.5)',
+                    background: 'rgba(255,255,255,0.95)',
+                    fontSize: '28px',
+                    fontWeight: 700,
+                    letterSpacing: 3,
+                    textTransform: 'uppercase',
+                    outline: 'none',
+                    color: 'royalblue',
+                    textAlign: 'center'
+                  }}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <div style={{ position: 'absolute', top: 8, bottom: 8, left: '20%', width: 2, background: '#9e9e9e', pointerEvents: 'none' }}></div>
+                <div style={{ position: 'absolute', top: 8, bottom: 8, left: '40%', width: 2, background: '#9e9e9e', pointerEvents: 'none' }}></div>
+                <div style={{ position: 'absolute', top: 8, bottom: 8, left: '60%', width: 2, background: '#9e9e9e', pointerEvents: 'none' }}></div>
+                <div style={{ position: 'absolute', top: 8, bottom: 8, left: '80%', width: 2, background: '#9e9e9e', pointerEvents: 'none' }}></div>
+              </div>
+              <button
+                type="submit"
+                disabled={status === 'loading' || code.trim().length === 0}
                 style={{
-                  flex: 1,
-                  padding: '12px 14px',
+                  padding: '10px 22px',
                   borderRadius: 10,
-                  border: '2px solid rgba(255,255,255,0.5)',
-                  background: 'rgba(255,255,255,0.95)',
-                  fontSize: '28px',
-                  fontWeight: 700,
-                  letterSpacing: 3,
-                  textTransform: 'uppercase',
-                  outline: 'none',
-                  color: 'royalblue',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  position: 'relative'
+                  border: 'none',
+                  background: '#4169e1',
+                  color: '#fff',
+                  fontWeight: 800,
+                  fontSize: '1rem',
+                  cursor: code.trim().length === 0 || status === 'loading' ? 'not-allowed' : 'pointer',
+                  opacity: code.trim().length === 0 || status === 'loading' ? 0.6 : 1
                 }}
-                autoComplete="off"
-                spellCheck={false}
-              />
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                bottom: 0,
-                left: '20%',
-                width: '2px',
-                backgroundColor: 'ash'
-              }}></div>
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                bottom: 0,
-                left: '40%',
-                width: '2px',
-                backgroundColor: 'ash'
-              }}></div>
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                bottom: 0,
-                left: '60%',
-                width: '2px',
-                backgroundColor: 'ash'
-              }}></div>
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                bottom: 0,
-                left: '80%',
-                width: '2px',
-                backgroundColor: 'ash'
-              }}></div>
+              >
+                {status === 'loading' ? '...' : 'Go'}
+              </button>
             </div>
           </form>
           {message && (
@@ -138,7 +127,7 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
             </div>
           )}
           <div style={{ textAlign: 'center', color: '#000', fontSize: '0.78rem', marginTop: 10 }}>
-            Enter your church's OCF Code to load its page
+            Enter a church's OCF Code to connect to them
           </div>
         </div>
       )}
