@@ -205,6 +205,7 @@ body, html, #root, .App {
   border-right: 2px solid rgba(255,255,255,0.7);
   white-space: nowrap;
   width: 0;
+  text-align: left;
   animation: typeCycle 10s steps(22, end) infinite, cursorBlink 0.75s step-end infinite, textBlinkTwice 10s linear infinite;
 }
 
@@ -229,6 +230,30 @@ body, html, #root, .App {
 .ocf-code-input::placeholder {
   color: rgba(255,255,255,0.82);
   font-weight: 700;
+  font-size: 0.3em;
+}
+
+.setup-form-desktop-wrapper {
+  max-height: min(74vh, 760px);
+  overflow-y: auto;
+  padding-right: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-primary) var(--theme-soft-bg);
+}
+
+.setup-form-desktop-wrapper::-webkit-scrollbar {
+  width: 10px;
+}
+
+.setup-form-desktop-wrapper::-webkit-scrollbar-track {
+  background: var(--theme-soft-bg);
+  border-radius: 999px;
+}
+
+.setup-form-desktop-wrapper::-webkit-scrollbar-thumb {
+  background: var(--theme-primary);
+  border-radius: 999px;
+  border: 2px solid var(--theme-soft-bg);
 }
 
 @keyframes cursorBlink {

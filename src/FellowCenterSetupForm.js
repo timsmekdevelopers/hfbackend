@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Country } from 'country-state-city';
 
 // ─── Helper: convert File → base64 data URL ──────────────────────────────
@@ -102,6 +102,14 @@ function PhotoField({ label, value, onChange, required }) {
 
 // ─── Main component ───────────────────────────────────────────────────────
 export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Personal info
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -166,21 +174,16 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
     setSubmitting(false);
   };
 
-  return (
+  const formContent = (
     <>
     <form className="form" onSubmit={handleSubmit} style={{ maxWidth: 'none', border: 'none', background: 'transparent', padding: 0, boxShadow: 'none' }}>
       {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: 28 }}>
-        <img
-          src={process.env.PUBLIC_URL + '/smhos-logo.png'}
-          alt="Our Church Fellowship Logo"
-          style={{ width: 80, margin: '0 auto 12px', display: 'block' }}
-        />
         <h2 style={{ margin: 0, color: 'var(--theme-text-strong)', fontSize: '1.4rem', fontWeight: 800 }}>
           Request for Our Church Fellowship Setup
         </h2>
         <p style={{ margin: '8px 0 0', color: '#6b7280', fontSize: '0.9rem' }}>
-          Register your Church or Commission to get your own Our Church Fellowship on the Home Fellowship App.
+          Register your Church / Ministry to get your own Our Church Fellowship app set up for you. The App is a full Ministry suite designed to advance God's Kingdom. The OCF Code helps you connect to first-timers.
         </p>
       </div>
         {/* ── Personal Information ── */}
@@ -340,4 +343,6 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
     </div>
     </>
   );
+
+  return isMobile ? formContent : <div className="setup-form-desktop-wrapper">{formContent}</div>;
 }
