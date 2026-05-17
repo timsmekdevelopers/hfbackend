@@ -122,57 +122,29 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
         </div>
       )}
 
-      <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.85)', marginBottom: 28, fontSize: '1rem' }}>
-        Welcome. How would you like to proceed?
-      </p>
-      <div style={{ display: 'grid', gap: 18 }}>
-        {/* Senior Pastor card */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
         <button
           onClick={onChoosePastor}
           style={{
-            background: '#fff',
-            border: '2px solid rgba(255,255,255,0.5)',
-            borderRadius: 12,
-            padding: '22px 24px',
+            background: 'none',
+            border: 'none',
             cursor: 'pointer',
-            textAlign: 'left',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-            transition: 'transform 0.15s, box-shadow 0.15s'
+            textAlign: 'center',
+            padding: 0,
+            textDecoration: 'underline',
+            color: '#fff',
+            fontSize: '1rem',
+            fontWeight: 600,
+            transition: 'opacity 0.15s'
           }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,0,0,0.18)'; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.12)'; }}
+          onMouseEnter={e => { e.currentTarget.style.opacity = '0.75'; }}
+          onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
         >
-          <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#1e3a5f', marginBottom: 6 }}>
-            I am a Senior Pastor / Visioner
-          </div>
-          <div style={{ fontSize: '0.875rem', color: '#6b7280', lineHeight: 1.5 }}>
-            Register your Church or Commission to access Our Church Fellowship for your organization.
-          </div>
+          Register church/ministry
         </button>
-
-        {/* Member card */}
-        <button
-          onClick={onChooseMember}
-          style={{
-            background: '#fff',
-            border: '2px solid rgba(255,255,255,0.5)',
-            borderRadius: 12,
-            padding: '22px 24px',
-            cursor: 'pointer',
-            textAlign: 'left',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-            transition: 'transform 0.15s, box-shadow 0.15s'
-          }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,0,0,0.18)'; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.12)'; }}
-        >
-          <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#1e3a5f', marginBottom: 6 }}>
-            I am a Member of a Church
-          </div>
-          <div style={{ fontSize: '0.875rem', color: '#6b7280', lineHeight: 1.5 }}>
-            Log in or register as a member, HF Leader, Branch Pastor, or State Pastor.
-          </div>
-        </button>
+        <div style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', textAlign: 'center', maxWidth: 320 }}>
+          Strictly for the visioner/founder. Please do not fill this form unauthorized
+        </div>
       </div>
     </div>
   );

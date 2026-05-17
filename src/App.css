@@ -92,7 +92,7 @@ body, html, #root, .App {
 }
 
 .App-logo {
-  width: 120px;
+  width: 240px;
   height: auto;
   display: block;
   position: relative;
@@ -148,7 +148,7 @@ body, html, #root, .App {
     font-size: 1rem;
   }
   .App-logo {
-    width: 80px;
+    width: 160px;
   }
 }
 
