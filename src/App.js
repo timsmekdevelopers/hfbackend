@@ -77,33 +77,51 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
                   borderRadius: 10,
                   border: '2px solid rgba(255,255,255,0.5)',
                   background: 'rgba(255,255,255,0.95)',
-                  fontSize: '1rem',
+                  fontSize: '28px',
                   fontWeight: 700,
                   letterSpacing: 3,
                   textTransform: 'uppercase',
                   outline: 'none',
-                  color: '#1e3a5f'
+                  color: 'royalblue',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  position: 'relative'
                 }}
                 autoComplete="off"
                 spellCheck={false}
               />
-              <button
-                type="submit"
-                disabled={status === 'loading' || code.trim().length === 0}
-                style={{
-                  padding: '12px 20px',
-                  borderRadius: 10,
-                  border: 'none',
-                  background: '#4169e1',
-                  color: '#fff',
-                  fontWeight: 800,
-                  fontSize: '1rem',
-                  cursor: code.trim().length === 0 || status === 'loading' ? 'not-allowed' : 'pointer',
-                  opacity: code.trim().length === 0 || status === 'loading' ? 0.6 : 1
-                }}
-              >
-                {status === 'loading' ? '…' : 'Go →'}
-              </button>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: '20%',
+                width: '2px',
+                backgroundColor: 'ash'
+              }}></div>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: '40%',
+                width: '2px',
+                backgroundColor: 'ash'
+              }}></div>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: '60%',
+                width: '2px',
+                backgroundColor: 'ash'
+              }}></div>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: '80%',
+                width: '2px',
+                backgroundColor: 'ash'
+              }}></div>
             </div>
           </form>
           {message && (
