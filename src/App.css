@@ -199,6 +199,32 @@ body, html, #root, .App {
   }
 }
 
+.typewriter {
+  display: inline-block;
+  overflow: hidden;
+  border-right: 2px solid rgba(255,255,255,0.7);
+  white-space: nowrap;
+  animation: typing 3s steps(14, end) 1, blink 0.75s step-end infinite;
+}
+
+@keyframes typing {
+  from {
+    width: 0;
+  }
+  to {
+    width: 13.5ch;
+  }
+}
+
+@keyframes blink {
+  0%, 49%, 100% {
+    border-right-color: rgba(255,255,255,0.7);
+  }
+  50%, 99% {
+    border-right-color: transparent;
+  }
+}
+
 /* Org Navbar responsive */
 .org-nav-hamburger {
   display: none !important;

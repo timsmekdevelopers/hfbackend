@@ -60,13 +60,16 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
       {/* OCF Code entry — only shown on the default (home) host */}
       {isDefaultHost && (
         <div style={{ marginBottom: 28 }}>
+          <div style={{ marginBottom: 12, height: '1.2rem', fontSize: '0.95rem', fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
+            <span className="typewriter">Enter OCF Code</span>
+          </div>
           <form onSubmit={handleSearch}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
               <input
                 type="text"
                 value={code}
                 onChange={e => setCode(e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 5))}
-                placeholder="Enter OCF Code (e.g. AB1CD)"
+                placeholder="E.g. AB1CD"
                 maxLength={5}
                 style={{
                   flex: 1,
