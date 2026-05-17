@@ -205,7 +205,7 @@ body, html, #root, .App {
   border-right: 2px solid rgba(255,255,255,0.7);
   white-space: nowrap;
   width: 0;
-  animation: typeCycle 10s steps(14, end) infinite, cursorBlink 0.75s step-end infinite, textBlinkTwice 10s linear infinite;
+  animation: typeCycle 10s steps(22, end) infinite, cursorBlink 0.75s step-end infinite, textBlinkTwice 10s linear infinite;
 }
 
 @keyframes typeCycle {
@@ -213,10 +213,10 @@ body, html, #root, .App {
     width: 0;
   }
   25% {
-    width: 13.5ch;
+    width: 22ch;
   }
   65% {
-    width: 13.5ch;
+    width: 22ch;
   }
   90% {
     width: 0;
@@ -224,6 +224,11 @@ body, html, #root, .App {
   100% {
     width: 0;
   }
+}
+
+.ocf-code-input::placeholder {
+  color: rgba(255,255,255,0.82);
+  font-weight: 700;
 }
 
 @keyframes cursorBlink {

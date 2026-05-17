@@ -61,38 +61,36 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
       {isDefaultHost && (
         <div style={{ marginBottom: 28 }}>
           <div style={{ marginBottom: 12, height: '1.8rem', fontSize: '1.9rem', fontWeight: 600, color: '#4169e1', textAlign: 'center' }}>
-            <span className="typewriter">Enter OCF Code</span>
+            <span className="typewriter">Enter your OCF Code...</span>
           </div>
           <form onSubmit={handleSearch}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-              <div style={{ position: 'relative', width: '50%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+              <div style={{ width: '65%' }}>
                 <input
                   type="text"
                   value={code}
                   onChange={e => setCode(e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 5))}
                   placeholder="E.g. AB1CD"
                   maxLength={5}
+                  className="ocf-code-input"
                   style={{
                     width: '100%',
                     padding: '12px 14px',
                     borderRadius: 10,
-                    border: '2px solid rgba(255,255,255,0.5)',
-                    background: 'rgba(255,255,255,0.95)',
+                    border: '1px solid #8c8c8c',
+                    background: '#808080',
                     fontSize: '28px',
-                    fontWeight: 700,
+                    fontWeight: 800,
                     letterSpacing: 3,
                     textTransform: 'uppercase',
                     outline: 'none',
-                    color: 'royalblue',
-                    textAlign: 'center'
+                    color: '#fff',
+                    textAlign: 'center',
+                    boxShadow: '0 8px 18px rgba(0, 0, 0, 0.22)'
                   }}
                   autoComplete="off"
                   spellCheck={false}
                 />
-                <div style={{ position: 'absolute', top: 8, bottom: 8, left: '20%', width: 2, background: '#9e9e9e', pointerEvents: 'none' }}></div>
-                <div style={{ position: 'absolute', top: 8, bottom: 8, left: '40%', width: 2, background: '#9e9e9e', pointerEvents: 'none' }}></div>
-                <div style={{ position: 'absolute', top: 8, bottom: 8, left: '60%', width: 2, background: '#9e9e9e', pointerEvents: 'none' }}></div>
-                <div style={{ position: 'absolute', top: 8, bottom: 8, left: '80%', width: 2, background: '#9e9e9e', pointerEvents: 'none' }}></div>
               </div>
               <button
                 type="submit"
@@ -142,7 +140,7 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
             textAlign: 'center',
             padding: 0,
             textDecoration: 'underline',
-            color: '#fff',
+            color: '#000',
             fontSize: '1rem',
             fontWeight: 600,
             transition: 'opacity 0.15s'
@@ -152,7 +150,7 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
         >
           Register church/ministry
         </button>
-        <div style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', textAlign: 'center', maxWidth: 320 }}>
+        <div style={{ fontSize: '0.875rem', color: '#000', fontStyle: 'italic', textAlign: 'center', maxWidth: 320 }}>
           Strictly for the visioner/founder. Please do not fill this form unauthorized
         </div>
       </div>
