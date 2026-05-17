@@ -204,24 +204,43 @@ body, html, #root, .App {
   overflow: hidden;
   border-right: 2px solid rgba(255,255,255,0.7);
   white-space: nowrap;
-  animation: typing 3s steps(14, end) infinite, blink 0.75s step-end infinite;
+  width: 0;
+  animation: typeCycle 10s steps(14, end) infinite, cursorBlink 0.75s step-end infinite, textBlinkTwice 10s linear infinite;
 }
 
-@keyframes typing {
-  from {
+@keyframes typeCycle {
+  0% {
     width: 0;
   }
-  to {
+  25% {
     width: 13.5ch;
+  }
+  65% {
+    width: 13.5ch;
+  }
+  90% {
+    width: 0;
+  }
+  100% {
+    width: 0;
   }
 }
 
-@keyframes blink {
+@keyframes cursorBlink {
   0%, 49%, 100% {
     border-right-color: rgba(255,255,255,0.7);
   }
   50%, 99% {
     border-right-color: transparent;
+  }
+}
+
+@keyframes textBlinkTwice {
+  0%, 56%, 58%, 60%, 62%, 100% {
+    opacity: 1;
+  }
+  57%, 61% {
+    opacity: 0;
   }
 }
 
