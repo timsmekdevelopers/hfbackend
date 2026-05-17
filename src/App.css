@@ -204,7 +204,7 @@ body, html, #root, .App {
   overflow: hidden;
   border-right: 2px solid rgba(255,255,255,0.7);
   white-space: nowrap;
-  animation: typing 3s steps(14, end) 1, blink 0.75s step-end infinite;
+  animation: typing 3s steps(14, end) infinite, blink 0.75s step-end infinite;
 }
 
 @keyframes typing {

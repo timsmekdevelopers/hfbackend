@@ -56,11 +56,11 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
   };
 
   return (
-    <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '0 8px' }}>
+    <div style={{ width: '100%', maxWidth: 240, margin: '0 auto', padding: '0 8px' }}>
       {/* OCF Code entry — only shown on the default (home) host */}
       {isDefaultHost && (
         <div style={{ marginBottom: 28 }}>
-          <div style={{ marginBottom: 12, height: '1.2rem', fontSize: '0.95rem', fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>
+          <div style={{ marginBottom: 12, height: '1.8rem', fontSize: '1.9rem', fontWeight: 600, color: '#4169e1', textAlign: 'center' }}>
             <span className="typewriter">Enter OCF Code</span>
           </div>
           <form onSubmit={handleSearch}>
@@ -119,7 +119,7 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
               {message}
             </div>
           )}
-          <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem', marginTop: 10 }}>
+          <div style={{ textAlign: 'center', color: '#000', fontSize: '0.78rem', marginTop: 10 }}>
             Enter your church's OCF Code to load its page
           </div>
         </div>
