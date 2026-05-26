@@ -30,6 +30,7 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
   const [code, setCode] = useState('');
   const [status, setStatus] = useState(null); // null | 'loading' | 'success' | 'error'
   const [message, setMessage] = useState('');
+  const [isTypewriterPaused, setIsTypewriterPaused] = useState(false);
   const isDefaultHost = DEFAULT_HOSTS.has(window.location.hostname);
 
   const handleSearch = async (e) => {
@@ -44,6 +45,7 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
       if (!res.ok) {
         setStatus('error');
         setMessage('No Church found with that OCF Code.');
+        setIsTypewriterPaused(false);
         return;
       }
       setStatus('success');
@@ -52,6 +54,15 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
     } catch {
       setStatus('error');
       setMessage('Failed to find organization. Please try again.');
+      setIsTypewriterPaused(false);
+    }
+  };
+
+  const handleCodeChange = (value) => {
+    const cleanedValue = value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 5);
+    setCode(cleanedValue);
+    if (cleanedValue.length > 0) {
+      setIsTypewriterPaused(true);
     }
   };
 
@@ -61,7 +72,9 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
       {isDefaultHost && (
         <div style={{ marginBottom: 28 }}>
           <div style={{ marginBottom: 12, height: '1.8rem', fontSize: '1.9rem', fontWeight: 600, color: '#4169e1', display: 'flex', justifyContent: 'center', width: '100vw', marginLeft: 'calc(-50vw + 50%)' }}>
-            <span className="typewriter">Enter your OCF Code...</span>
+            <span className={isTypewriterPaused ? '' : 'typewriter'}>
+              {isTypewriterPaused ? 'Enter your OCF Code' : 'Enter your OCF Code...'}
+            </span>
           </div>
           <form onSubmit={handleSearch}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
@@ -69,7 +82,7 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
                 <input
                   type="text"
                   value={code}
-                  onChange={e => setCode(e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 5))}
+                  onChange={e => handleCodeChange(e.target.value)}
                   placeholder="E.g. AB1CD"
                   maxLength={5}
                   className="ocf-code-input"
