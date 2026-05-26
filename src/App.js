@@ -56,16 +56,16 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
   };
 
   return (
-    <div style={{ width: '100%', maxWidth: 240, margin: '0 auto', padding: '0 8px' }}>
+    <div style={{ width: '100%', maxWidth: 290, margin: '0 auto', padding: '0 8px' }}>
       {/* OCF Code entry — only shown on the default (home) host */}
       {isDefaultHost && (
         <div style={{ marginBottom: 28 }}>
-          <div style={{ marginBottom: 12, height: '1.8rem', fontSize: '1.9rem', fontWeight: 600, color: '#4169e1', textAlign: 'center' }}>
+          <div style={{ marginBottom: 12, height: '1.8rem', fontSize: '1.9rem', fontWeight: 600, color: '#4169e1', display: 'flex', justifyContent: 'center', width: '100vw', marginLeft: 'calc(-50vw + 50%)' }}>
             <span className="typewriter">Enter your OCF Code...</span>
           </div>
           <form onSubmit={handleSearch}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-              <div style={{ width: '65%' }}>
+              <div style={{ width: '85%' }}>
                 <input
                   type="text"
                   value={code}
@@ -96,13 +96,14 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
                 type="submit"
                 disabled={status === 'loading' || code.trim().length === 0}
                 style={{
-                  padding: '10px 22px',
+                  padding: '0 22px',
                   borderRadius: 10,
                   border: 'none',
                   background: '#4169e1',
                   color: '#fff',
                   fontWeight: 800,
                   fontSize: '1rem',
+                  alignSelf: 'stretch',
                   cursor: code.trim().length === 0 || status === 'loading' ? 'not-allowed' : 'pointer',
                   opacity: code.trim().length === 0 || status === 'loading' ? 0.6 : 1
                 }}
