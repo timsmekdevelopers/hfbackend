@@ -278,7 +278,7 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
               type="checkbox"
               checked={wantsDedicatedDatabase}
               onChange={e => setWantsDedicatedDatabase(e.target.checked)}
-              style={{ marginTop: 3, accentColor: 'var(--theme-primary)' }}
+              style={{ margin: '3px 0 0 0', accentColor: 'var(--theme-primary)', flexShrink: 0 }}
             />
             <span>
               <strong style={{ display: 'block', fontSize: '0.9rem', color: '#111827' }}>Request a dedicated database</strong>
@@ -294,7 +294,7 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
               type="checkbox"
               checked={wantsCustomDomain}
               onChange={e => setWantsCustomDomain(e.target.checked)}
-              style={{ marginTop: 3, accentColor: 'var(--theme-primary)' }}
+              style={{ margin: '3px 0 0 0', accentColor: 'var(--theme-primary)', flexShrink: 0 }}
             />
             <span>
               <strong style={{ display: 'block', fontSize: '0.9rem', color: '#111827' }}>Request a custom domain name</strong>
@@ -318,7 +318,7 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
           style={{
             width: '100%',
             padding: '0.75rem',
-            background: submitting ? '#93c5fd' : 'var(--theme-primary)',
+             background: submitting ? '#93c5fd' : '#4169e1',
             color: '#fff',
             border: 'none',
             borderRadius: 7,
