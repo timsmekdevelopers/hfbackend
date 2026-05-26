@@ -130,10 +130,11 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
               marginTop: 10,
               padding: '8px 14px',
               borderRadius: 8,
-              background: status === 'error' ? 'rgba(198,40,40,0.15)' : 'rgba(46,125,50,0.15)',
-              color: status === 'error' ? '#ffcdd2' : '#c8e6c9',
+              background: 'transparent',
+              color: status === 'error' ? '#ff0000' : '#c8e6c9',
               fontWeight: 600,
-              fontSize: '0.9rem'
+              fontSize: '0.9rem',
+              textAlign: 'center'
             }}>
               {message}
             </div>
