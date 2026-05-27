@@ -256,6 +256,23 @@ body, html, #root, .App {
   border: 2px solid var(--theme-soft-bg);
 }
 
+.field-typing-active {
+  border-color: #ffd700 !important;
+  animation: fieldTypingFlash 0.95s ease-in-out infinite;
+}
+
+@keyframes fieldTypingFlash {
+  0%,
+  100% {
+    border-color: #ffd700;
+    box-shadow: 0 0 0 1px rgba(255, 215, 0, 0.65), 0 0 8px rgba(255, 215, 0, 0.35);
+  }
+  50% {
+    border-color: #ffffff;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8), 0 0 8px rgba(255, 255, 255, 0.45);
+  }
+}
+
 @keyframes cursorBlink {
   0%, 49%, 100% {
     border-right-color: rgba(255,255,255,0.7);

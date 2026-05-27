@@ -15,9 +15,9 @@ function readFileAsBase64(file) {
 function Field({ label, required, children }) {
   return (
     <div style={{ marginBottom: 18 }}>
-      <label style={{ display: 'block', fontWeight: 600, fontSize: '0.88rem', color: '#374151', marginBottom: 5 }}>
+      <label style={{ display: 'block', fontWeight: 600, fontSize: '1.32rem', color: '#000', marginBottom: 5 }}>
         {label}
-        {required && <span style={{ color: 'var(--theme-primary)', marginLeft: 3 }}>*</span>}
+        {required && <span style={{ color: '#000', marginLeft: 3 }}>*</span>}
       </label>
       {children}
     </div>
@@ -29,9 +29,10 @@ const inputStyle = {
   padding: '0.5rem 0.75rem',
   border: '1px solid #d1d5db',
   borderRadius: 6,
-  fontSize: '0.95rem',
+  fontSize: '1.425rem',
   boxSizing: 'border-box',
-  background: 'transparent'
+  background: 'transparent',
+  color: '#000'
 };
 
 const sectionStyle = {
@@ -44,9 +45,9 @@ const sectionStyle = {
 
 const sectionHeadingStyle = {
   margin: '0 0 16px',
-  fontSize: '1rem',
+  fontSize: '1.5rem',
   fontWeight: 700,
-  color: 'var(--theme-text-strong)',
+  color: '#000',
   borderBottom: '2px solid var(--theme-soft-border)',
   paddingBottom: 8
 };
@@ -88,11 +89,11 @@ function PhotoField({ label, value, onChange, required }) {
           <button
             type="button"
             onClick={() => inputRef.current.click()}
-            style={{ ...inputStyle, width: 'auto', cursor: 'pointer', background: 'var(--theme-soft-bg)', border: '1px solid var(--theme-soft-border)', fontWeight: 600, fontSize: '0.82rem', padding: '0.4rem 1rem', color: 'var(--theme-text-strong)' }}
+            style={{ ...inputStyle, width: 'auto', cursor: 'pointer', background: 'var(--theme-soft-bg)', border: '1px solid var(--theme-soft-border)', fontWeight: 600, fontSize: '1.23rem', padding: '0.4rem 1rem', color: '#000' }}
           >
             {value ? 'Change photo' : 'Upload photo'}
           </button>
-          <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 4 }}>JPG, PNG. Max 2 MB.</div>
+          <div style={{ fontSize: '1.125rem', color: '#000', marginTop: 4 }}>JPG, PNG. Max 2 MB.</div>
         </div>
       </div>
       <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFile} style={{ display: 'none' }} />
@@ -131,6 +132,11 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [activeTypingField, setActiveTypingField] = useState('');
+
+  const isTypingActive = (fieldName, value) => (
+    activeTypingField === fieldName && typeof value === 'string' && value.trim().length > 0
+  );
 
   const countries = useMemo(
     () => Country.getAllCountries().sort((a, b) => a.name.localeCompare(b.name)),
@@ -176,13 +182,13 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
 
   const formContent = (
     <>
-    <form className="form" onSubmit={handleSubmit} style={{ maxWidth: 'none', border: 'none', background: 'transparent', padding: 0, boxShadow: 'none' }}>
+    <form className="form" onSubmit={handleSubmit} style={{ maxWidth: 'none', border: 'none', background: 'transparent', padding: 0, boxShadow: 'none', color: '#000' }}>
       {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: 28 }}>
-        <h2 style={{ margin: 0, color: 'var(--theme-text-strong)', fontSize: '1.4rem', fontWeight: 800 }}>
+        <h2 style={{ margin: 0, color: '#000', fontSize: '2.1rem', fontWeight: 800 }}>
           Request for Our Church Fellowship Setup
         </h2>
-        <p style={{ margin: '8px 0 0', color: '#6b7280', fontSize: '0.9rem' }}>
+        <p style={{ margin: '8px 0 0', color: '#000', fontSize: '1.35rem' }}>
           Register your Church / Ministry to get your own Our Church Fellowship app set up for you. The App is a full Ministry suite designed to advance God's Kingdom. The OCF Code helps you connect to first-timers.
         </p>
       </div>
@@ -191,11 +197,33 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
           <h3 style={sectionHeadingStyle}>Your Personal Information</h3>
 
           <Field label="Full Name" required>
-            <input style={inputStyle} type="text" maxLength={80} value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. John Adeyemi" />
+            <input
+              className={isTypingActive('name', name) ? 'field-typing-active' : ''}
+              style={inputStyle}
+              type="text"
+              maxLength={80}
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onFocus={() => setActiveTypingField('name')}
+              onBlur={() => setActiveTypingField('')}
+              required
+              placeholder="e.g. John Adeyemi"
+            />
           </Field>
 
           <Field label="Personal Email Address" required>
-            <input style={inputStyle} type="email" maxLength={80} value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@example.com" />
+            <input
+              className={isTypingActive('email', email) ? 'field-typing-active' : ''}
+              style={inputStyle}
+              type="email"
+              maxLength={80}
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              onFocus={() => setActiveTypingField('email')}
+              onBlur={() => setActiveTypingField('')}
+              required
+              placeholder="you@example.com"
+            />
           </Field>
 
           <Field label="Country" required>
@@ -210,17 +238,20 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
           <Field label="Personal Phone Number" required>
             <div style={{ display: 'flex', gap: 8 }}>
               {dialingCode && (
-                <span style={{ padding: '0.5rem 0.6rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '0.95rem', whiteSpace: 'nowrap' }}>
+                <span style={{ padding: '0.5rem 0.6rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '1.425rem', whiteSpace: 'nowrap', color: '#000' }}>
                   {dialingCode}
                 </span>
               )}
               <input
+                className={isTypingActive('phone', phone) ? 'field-typing-active' : ''}
                 style={{ ...inputStyle, flex: 1 }}
                 type="tel"
                 maxLength={15}
                 pattern="[0-9]{1,15}"
                 value={phone}
                 onChange={e => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                onFocus={() => setActiveTypingField('phone')}
+                onBlur={() => setActiveTypingField('')}
                 required
                 placeholder="8012345678"
               />
@@ -228,11 +259,33 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
           </Field>
 
           <Field label="Residential Address" required>
-            <input style={inputStyle} type="text" maxLength={120} value={address} onChange={e => setAddress(e.target.value)} required placeholder="House No., Street, City" />
+            <input
+              className={isTypingActive('address', address) ? 'field-typing-active' : ''}
+              style={inputStyle}
+              type="text"
+              maxLength={120}
+              value={address}
+              onChange={e => setAddress(e.target.value)}
+              onFocus={() => setActiveTypingField('address')}
+              onBlur={() => setActiveTypingField('')}
+              required
+              placeholder="House No., Street, City"
+            />
           </Field>
 
           <Field label="Your Position / Title in the Church or Commission" required>
-            <input style={inputStyle} type="text" maxLength={80} value={position} onChange={e => setPosition(e.target.value)} required placeholder="e.g. Senior Pastor, Visioner, General Overseer" />
+            <input
+              className={isTypingActive('position', position) ? 'field-typing-active' : ''}
+              style={inputStyle}
+              type="text"
+              maxLength={80}
+              value={position}
+              onChange={e => setPosition(e.target.value)}
+              onFocus={() => setActiveTypingField('position')}
+              onBlur={() => setActiveTypingField('')}
+              required
+              placeholder="e.g. Senior Pastor, Visioner, General Overseer"
+            />
           </Field>
 
           <PhotoField
@@ -248,7 +301,18 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
           <h3 style={sectionHeadingStyle}>Church / Commission Information</h3>
 
           <Field label="Name of Church or Commission" required>
-            <input style={inputStyle} type="text" maxLength={120} value={churchName} onChange={e => setChurchName(e.target.value)} required placeholder="e.g. Grace Gospel Church" />
+            <input
+              className={isTypingActive('churchName', churchName) ? 'field-typing-active' : ''}
+              style={inputStyle}
+              type="text"
+              maxLength={120}
+              value={churchName}
+              onChange={e => setChurchName(e.target.value)}
+              onFocus={() => setActiveTypingField('churchName')}
+              onBlur={() => setActiveTypingField('')}
+              required
+              placeholder="e.g. Grace Gospel Church"
+            />
           </Field>
 
           <PhotoField
@@ -258,56 +322,81 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
           />
 
           <Field label="Church / Commission Address" required>
-            <input style={inputStyle} type="text" maxLength={160} value={churchAddress} onChange={e => setChurchAddress(e.target.value)} required placeholder="Full address of the church or commission headquarters" />
+            <input
+              className={isTypingActive('churchAddress', churchAddress) ? 'field-typing-active' : ''}
+              style={inputStyle}
+              type="text"
+              maxLength={160}
+              value={churchAddress}
+              onChange={e => setChurchAddress(e.target.value)}
+              onFocus={() => setActiveTypingField('churchAddress')}
+              onBlur={() => setActiveTypingField('')}
+              required
+              placeholder="Full address of the church or commission headquarters"
+            />
           </Field>
 
           <Field label="General Enquiry Phone Number" required>
-            <input style={inputStyle} type="tel" maxLength={20} value={churchEnquiryPhone} onChange={e => setChurchEnquiryPhone(e.target.value)} required placeholder="+234 800 0000 000" />
+            <input
+              className={isTypingActive('churchEnquiryPhone', churchEnquiryPhone) ? 'field-typing-active' : ''}
+              style={inputStyle}
+              type="tel"
+              maxLength={20}
+              value={churchEnquiryPhone}
+              onChange={e => setChurchEnquiryPhone(e.target.value)}
+              onFocus={() => setActiveTypingField('churchEnquiryPhone')}
+              onBlur={() => setActiveTypingField('')}
+              required
+              placeholder="+234 800 0000 000"
+            />
           </Field>
         </section>
 
         {/* ── Infrastructure Preferences ── */}
         <section style={sectionStyle}>
           <h3 style={sectionHeadingStyle}>Infrastructure Preferences</h3>
-          <p style={{ margin: '0 0 14px', fontSize: '0.85rem', color: '#6b7280' }}>
+          <p style={{ margin: '0 0 14px', fontSize: '1.275rem', color: '#000' }}>
             These are optional. You can always update these from your Admin settings after your center is approved.
           </p>
 
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12, margin: 0, padding: 0 }}>
+
+          <label style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', gap: 6, cursor: 'pointer', margin: 0, padding: 0, width: '100%' }}>
             <input
               type="checkbox"
               checked={wantsDedicatedDatabase}
               onChange={e => setWantsDedicatedDatabase(e.target.checked)}
-              style={{ margin: '3px 0 0 0', accentColor: 'var(--theme-primary)', flexShrink: 0 }}
+              style={{ margin: '2px 0 0 0', accentColor: 'var(--theme-primary)', flexShrink: 0 }}
             />
-            <span>
-              <strong style={{ display: 'block', fontSize: '0.9rem', color: '#111827' }}>Request a dedicated database</strong>
-              <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+            <span style={{ margin: 0, padding: 0 }}>
+              <strong style={{ display: 'block', fontSize: '1.35rem', color: '#000' }}>Request a dedicated database</strong>
+              <span style={{ fontSize: '1.2rem', color: '#000' }}>
                 Your organization's data will be stored in a dedicated MongoDB Atlas database.
                 You will provide the URI from your Admin backend settings.
               </span>
             </span>
           </label>
 
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', gap: 6, cursor: 'pointer', margin: 0, padding: 0, width: '100%' }}>
             <input
               type="checkbox"
               checked={wantsCustomDomain}
               onChange={e => setWantsCustomDomain(e.target.checked)}
-              style={{ margin: '3px 0 0 0', accentColor: 'var(--theme-primary)', flexShrink: 0 }}
+              style={{ margin: '2px 0 0 0', accentColor: 'var(--theme-primary)', flexShrink: 0 }}
             />
-            <span>
-              <strong style={{ display: 'block', fontSize: '0.9rem', color: '#111827' }}>Request a custom domain name</strong>
-              <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+            <span style={{ margin: 0, padding: 0 }}>
+              <strong style={{ display: 'block', fontSize: '1.35rem', color: '#000' }}>Request a custom domain name</strong>
+              <span style={{ fontSize: '1.2rem', color: '#000' }}>
                 Your Our Church Fellowship will be accessible from your own domain (e.g. mychurch.org).
                 You can configure this from your Admin backend settings.
               </span>
             </span>
           </label>
+          </div>
         </section>
 
         {error && (
-          <div style={{ marginBottom: 16, padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 6, color: '#b91c1c', fontSize: '0.9rem' }}>
+          <div style={{ marginBottom: 16, padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 6, color: '#000', fontSize: '1.35rem' }}>
             {error}
           </div>
         )}
@@ -319,10 +408,10 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
             width: '100%',
             padding: '0.75rem',
              background: submitting ? '#93c5fd' : '#4169e1',
-            color: '#fff',
+            color: '#000',
             border: 'none',
             borderRadius: 7,
-            fontSize: '1rem',
+            fontSize: '1.5rem',
             fontWeight: 700,
             cursor: submitting ? 'not-allowed' : 'pointer',
             transition: 'background 0.2s'
@@ -336,7 +425,7 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
       <button
         type="button"
         onClick={onBack}
-        style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', textDecoration: 'underline', fontSize: '0.9rem' }}
+        style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', textDecoration: 'underline', fontSize: '1.35rem' }}
       >
         ← Back
       </button>
