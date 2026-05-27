@@ -126,10 +126,6 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
   const [churchAddress, setChurchAddress] = useState('');
   const [churchEnquiryPhone, setChurchEnquiryPhone] = useState('');
 
-  // Preferences
-  const [wantsDedicatedDatabase, setWantsDedicatedDatabase] = useState(false);
-  const [wantsCustomDomain, setWantsCustomDomain] = useState(false);
-
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [activeTypingField, setActiveTypingField] = useState('');
@@ -163,9 +159,7 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
           churchName: churchName.trim(),
           churchLogo,
           churchAddress: churchAddress.trim(),
-          churchEnquiryPhone: churchEnquiryPhone.trim(),
-          wantsDedicatedDatabase,
-          wantsCustomDomain
+          churchEnquiryPhone: churchEnquiryPhone.trim()
         })
       });
       const data = await res.json();
@@ -352,57 +346,25 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
           </Field>
         </section>
 
-        {/* ── Infrastructure Preferences ── */}
-        <section style={sectionStyle}>
-          <h3 style={sectionHeadingStyle}>Infrastructure Preferences</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, margin: 0, marginLeft: 0, padding: 0, paddingLeft: 0, width: '100%' }}>
-
-          <label style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', gap: 4, cursor: 'pointer', margin: 0, marginLeft: 0, padding: 0, paddingLeft: 0, width: '100%' }}>
-            <input
-              type="checkbox"
-              checked={wantsDedicatedDatabase}
-              onChange={e => setWantsDedicatedDatabase(e.target.checked)}
-              style={{ margin: '2px 0 0 0', accentColor: 'var(--theme-primary)', flexShrink: 0 }}
-            />
-            <span style={{ margin: 0, padding: 0 }}>
-              <strong style={{ display: 'block', fontSize: '1.35rem', color: '#000', marginBottom: 2, lineHeight: 1.2 }}>Request a dedicated database</strong>
-              <span style={{ display: 'block', margin: 0, fontSize: '1.2rem', color: '#000', lineHeight: 1.2 }}>
-                Your organization's data will be stored in a dedicated MongoDB Atlas database.
-                You will provide the URI from your Admin backend settings.
-              </span>
-            </span>
-          </label>
-
-          <label style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', gap: 4, cursor: 'pointer', margin: 0, marginLeft: 0, padding: 0, paddingLeft: 0, width: '100%' }}>
-            <input
-              type="checkbox"
-              checked={wantsCustomDomain}
-              onChange={e => setWantsCustomDomain(e.target.checked)}
-              style={{ margin: '2px 0 0 0', accentColor: 'var(--theme-primary)', flexShrink: 0 }}
-            />
-            <span style={{ margin: 0, padding: 0 }}>
-              <strong style={{ display: 'block', fontSize: '1.35rem', color: '#000', marginBottom: 2, lineHeight: 1.2 }}>Request a custom domain name</strong>
-              <span style={{ display: 'block', margin: 0, fontSize: '1.2rem', color: '#000', lineHeight: 1.2 }}>
-                Your Our Church Fellowship will be accessible from your own domain (e.g. mychurch.org).
-                You can configure this from your Admin backend settings.
-              </span>
-            </span>
-          </label>
-          </div>
-        </section>
-
         {error && (
           <div style={{ marginBottom: 16, padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 6, color: '#000', fontSize: '1.35rem' }}>
             {error}
           </div>
         )}
 
+        <p style={{ margin: '0 0 14px', color: '#000', fontSize: '1.15rem', lineHeight: 1.45, textAlign: 'left' }}>
+          Churches/Ministries get 100% customized interface with the brandings for the commission. There is a support for a dedicated database. You can plug your own database and domain so the app runs directly on your own domain and database. This setup is fast and 100% free for churches and ministries that specialize in soul winning and establishment, teaching of the Word of God, promoting the Kingdom of God (Matthew 28:18-20). By submitting this form, you agree to the OCF Terms of Service and Privacy Policy.
+        </p>
+
         <button
+          className="floating-submit-btn"
           type="submit"
           disabled={submitting}
           style={{
-            width: '100%',
-            padding: '0.75rem',
+            width: 'fit-content',
+            margin: '4px auto 0',
+            display: 'block',
+            padding: '0.5rem 1rem',
              background: submitting ? '#93c5fd' : '#4169e1',
             color: '#000',
             border: 'none',
@@ -410,7 +372,8 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
             fontSize: '1.5rem',
             fontWeight: 700,
             cursor: submitting ? 'not-allowed' : 'pointer',
-            transition: 'background 0.2s'
+            transition: 'background 0.2s',
+            animation: submitting ? 'none' : 'submitButtonFloat 2.2s ease-in-out infinite'
           }}
         >
           {submitting ? 'Submitting…' : 'Submit Our Church Fellowship Request'}
