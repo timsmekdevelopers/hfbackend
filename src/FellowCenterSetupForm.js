@@ -12,7 +12,7 @@ function readFileAsBase64(file) {
 }
 
 // ─── Reusable field wrapper ───────────────────────────────────────────────
-function Field({ label, required, children }) {
+function Field({ label, required, children, error }) {
   return (
     <div style={{ marginBottom: 18 }}>
       <label style={{ display: 'block', fontWeight: 600, fontSize: '1.32rem', color: '#000', marginBottom: 5 }}>
@@ -20,6 +20,7 @@ function Field({ label, required, children }) {
         {required && <span style={{ color: '#000', marginLeft: 3 }}>*</span>}
       </label>
       {children}
+      {error && <div style={{ marginTop: 6, color: '#dc2626', fontSize: '1rem', fontWeight: 600, background: 'none' }}>{error}</div>}
     </div>
   );
 }
@@ -34,6 +35,13 @@ const inputStyle = {
   background: 'transparent',
   color: '#000'
 };
+
+const getFieldStyle = (hasError, extraStyle = {}) => ({
+  ...inputStyle,
+  borderColor: hasError ? '#dc2626' : '#d1d5db',
+  boxShadow: hasError ? '0 0 0 1px rgba(220, 38, 38, 0.15)' : 'none',
+  ...extraStyle
+});
 
 const sectionStyle = {
   background: 'transparent',
@@ -53,7 +61,7 @@ const sectionHeadingStyle = {
 };
 
 // ─── Photo upload field ───────────────────────────────────────────────────
-function PhotoField({ label, value, onChange, required }) {
+function PhotoField({ label, value, onChange, required, error }) {
   const inputRef = useRef();
 
   const handleFile = async (e) => {
@@ -72,24 +80,42 @@ function PhotoField({ label, value, onChange, required }) {
   };
 
   return (
-    <Field label={label} required={required}>
+    <Field label={label} required={required} error={error}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        {value ? (
-          <img
-            src={value}
-            alt="preview"
-            style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '1px solid #d1d5db' }}
-          />
-        ) : (
-          <div style={{ width: 64, height: 64, borderRadius: 8, border: '2px dashed #d1d5db', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: 22 }}>
-            +
-          </div>
-        )}
+        <button
+          type="button"
+          onClick={() => inputRef.current.click()}
+          style={{
+            width: 64,
+            height: 64,
+            padding: 0,
+            borderRadius: 8,
+            border: `2px dashed ${error ? '#dc2626' : '#d1d5db'}`,
+            background: 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            overflow: 'hidden',
+            flexShrink: 0
+          }}
+          aria-label={value ? 'Change uploaded logo' : 'Upload logo'}
+        >
+          {value ? (
+            <img
+              src={value}
+              alt="preview"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          ) : (
+            <span style={{ color: '#9ca3af', fontSize: 22, lineHeight: 1 }}>+</span>
+          )}
+        </button>
         <div>
           <button
             type="button"
             onClick={() => inputRef.current.click()}
-            style={{ ...inputStyle, width: 'auto', cursor: 'pointer', background: 'var(--theme-soft-bg)', border: '1px solid var(--theme-soft-border)', fontWeight: 600, fontSize: '1.23rem', padding: '0.4rem 1rem', color: '#000' }}
+            style={{ ...inputStyle, width: 'auto', cursor: 'pointer', background: 'var(--theme-soft-bg)', border: `1px solid ${error ? '#dc2626' : 'var(--theme-soft-border)'}`, fontWeight: 600, fontSize: '1.23rem', padding: '0.4rem 1rem', color: '#000' }}
           >
             {value ? 'Change photo' : 'Upload photo'}
           </button>
@@ -127,7 +153,8 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
   const [churchEnquiryPhone, setChurchEnquiryPhone] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [submitError, setSubmitError] = useState('');
   const [activeTypingField, setActiveTypingField] = useState('');
 
   const isTypingActive = (fieldName, value) => (
@@ -141,9 +168,54 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
   const selectedCountry = countries.find(c => c.isoCode === countryCode);
   const dialingCode = selectedCountry ? `+${selectedCountry.phonecode}` : '';
 
+  const getRequiredMessage = (fieldLabel) => `${fieldLabel} is required, please.`;
+
+  const requiredFieldDefinitions = [
+    { key: 'name', label: 'Full Name', value: name },
+    { key: 'email', label: 'Personal Email Address', value: email },
+    { key: 'countryCode', label: 'Country', value: countryCode },
+    { key: 'phone', label: 'Personal Phone Number', value: phone },
+    { key: 'address', label: 'Residential Address', value: address },
+    { key: 'position', label: 'Your Position / Title in the Church or Commission', value: position },
+    { key: 'passportPhoto', label: 'Passport Photo (Head-shot)', value: passportPhoto },
+    { key: 'churchName', label: 'Name of Church or Commission', value: churchName },
+    { key: 'churchAddress', label: 'Church / Commission Address', value: churchAddress },
+    { key: 'churchEnquiryPhone', label: 'General Enquiry Phone Number', value: churchEnquiryPhone }
+  ];
+
+  const clearFieldError = (key) => {
+    setFieldErrors(prev => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const setSingleFieldValue = (setter, key) => (value) => {
+    setter(value);
+    clearFieldError(key);
+    setSubmitError('');
+  };
+
+  const validateForm = () => {
+    const nextErrors = requiredFieldDefinitions.reduce((accumulator, field) => {
+      if (!String(field.value || '').trim()) {
+        accumulator[field.key] = getRequiredMessage(field.label);
+      }
+      return accumulator;
+    }, {});
+
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setSubmitError('');
+    if (!validateForm()) {
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch('/api/organizations/setup-request', {
@@ -164,19 +236,30 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.msg || 'Submission failed. Please try again.');
+        if (data.msg) {
+          const messageMatch = data.msg.match(/^(.+?) is required, please\.$/);
+          if (messageMatch) {
+            const fieldLabel = messageMatch[1];
+            const matchedField = requiredFieldDefinitions.find(field => field.label === fieldLabel);
+            if (matchedField) {
+              setFieldErrors(prev => ({ ...prev, [matchedField.key]: data.msg }));
+              return;
+            }
+          }
+          setSubmitError(data.msg);
+        }
       } else {
         onSubmitted && onSubmitted();
       }
     } catch (err) {
-      setError('Network error. Please check your connection and try again.');
+      setSubmitError('Network error. Please check your connection and try again.');
     }
     setSubmitting(false);
   };
 
   const formContent = (
     <>
-    <form className="form" onSubmit={handleSubmit} style={{ maxWidth: 'none', border: 'none', background: 'transparent', padding: 0, boxShadow: 'none', color: '#000' }}>
+    <form className="form" noValidate onSubmit={handleSubmit} style={{ maxWidth: 'none', border: 'none', background: 'transparent', padding: 0, boxShadow: 'none', color: '#000' }}>
       {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: 28 }}>
         <h2 style={{ margin: 0, color: '#000', fontSize: '2.1rem', fontWeight: 800 }}>
@@ -190,14 +273,14 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
         <section style={sectionStyle}>
           <h3 style={sectionHeadingStyle}>Your Personal Information</h3>
 
-          <Field label="Full Name" required>
+          <Field label="Full Name" required error={fieldErrors.name}>
             <input
               className={isTypingActive('name', name) ? 'field-typing-active' : ''}
-              style={inputStyle}
+              style={getFieldStyle(Boolean(fieldErrors.name))}
               type="text"
               maxLength={80}
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={e => setSingleFieldValue(setName, 'name')(e.target.value)}
               onFocus={() => setActiveTypingField('name')}
               onBlur={() => setActiveTypingField('')}
               required
@@ -205,14 +288,14 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
             />
           </Field>
 
-          <Field label="Personal Email Address" required>
+          <Field label="Personal Email Address" required error={fieldErrors.email}>
             <input
               className={isTypingActive('email', email) ? 'field-typing-active' : ''}
-              style={inputStyle}
+              style={getFieldStyle(Boolean(fieldErrors.email))}
               type="email"
               maxLength={80}
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={e => setSingleFieldValue(setEmail, 'email')(e.target.value)}
               onFocus={() => setActiveTypingField('email')}
               onBlur={() => setActiveTypingField('')}
               required
@@ -220,8 +303,8 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
             />
           </Field>
 
-          <Field label="Country" required>
-            <select style={inputStyle} value={countryCode} onChange={e => setCountryCode(e.target.value)} required>
+          <Field label="Country" required error={fieldErrors.countryCode}>
+            <select style={getFieldStyle(Boolean(fieldErrors.countryCode))} value={countryCode} onChange={e => setSingleFieldValue(setCountryCode, 'countryCode')(e.target.value)} required>
               <option value="">Select country…</option>
               {countries.map(c => (
                 <option key={c.isoCode} value={c.isoCode}>{c.name}</option>
@@ -229,7 +312,7 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
             </select>
           </Field>
 
-          <Field label="Personal Phone Number" required>
+          <Field label="Personal Phone Number" required error={fieldErrors.phone}>
             <div style={{ display: 'flex', gap: 8 }}>
               {dialingCode && (
                 <span style={{ padding: '0.5rem 0.6rem', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '1.425rem', whiteSpace: 'nowrap', color: '#000' }}>
@@ -238,12 +321,12 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
               )}
               <input
                 className={isTypingActive('phone', phone) ? 'field-typing-active' : ''}
-                style={{ ...inputStyle, flex: 1 }}
+                style={getFieldStyle(Boolean(fieldErrors.phone), { flex: 1 })}
                 type="tel"
                 maxLength={15}
                 pattern="[0-9]{1,15}"
                 value={phone}
-                onChange={e => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                onChange={e => setSingleFieldValue(setPhone, 'phone')(e.target.value.replace(/[^0-9]/g, ''))}
                 onFocus={() => setActiveTypingField('phone')}
                 onBlur={() => setActiveTypingField('')}
                 required
@@ -252,14 +335,14 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
             </div>
           </Field>
 
-          <Field label="Residential Address" required>
+          <Field label="Residential Address" required error={fieldErrors.address}>
             <input
               className={isTypingActive('address', address) ? 'field-typing-active' : ''}
-              style={inputStyle}
+              style={getFieldStyle(Boolean(fieldErrors.address))}
               type="text"
               maxLength={120}
               value={address}
-              onChange={e => setAddress(e.target.value)}
+              onChange={e => setSingleFieldValue(setAddress, 'address')(e.target.value)}
               onFocus={() => setActiveTypingField('address')}
               onBlur={() => setActiveTypingField('')}
               required
@@ -267,14 +350,14 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
             />
           </Field>
 
-          <Field label="Your Position / Title in the Church or Commission" required>
+          <Field label="Your Position / Title in the Church or Commission" required error={fieldErrors.position}>
             <input
               className={isTypingActive('position', position) ? 'field-typing-active' : ''}
-              style={inputStyle}
+              style={getFieldStyle(Boolean(fieldErrors.position))}
               type="text"
               maxLength={80}
               value={position}
-              onChange={e => setPosition(e.target.value)}
+              onChange={e => setSingleFieldValue(setPosition, 'position')(e.target.value)}
               onFocus={() => setActiveTypingField('position')}
               onBlur={() => setActiveTypingField('')}
               required
@@ -286,7 +369,8 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
             label="Passport Photo (Head-shot)"
             required
             value={passportPhoto}
-            onChange={setPassportPhoto}
+            onChange={file => setSingleFieldValue(setPassportPhoto, 'passportPhoto')(file)}
+            error={fieldErrors.passportPhoto}
           />
         </section>
 
@@ -294,14 +378,14 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
         <section style={sectionStyle}>
           <h3 style={sectionHeadingStyle}>Church / Commission Information</h3>
 
-          <Field label="Name of Church or Commission" required>
+          <Field label="Name of Church or Commission" required error={fieldErrors.churchName}>
             <input
               className={isTypingActive('churchName', churchName) ? 'field-typing-active' : ''}
-              style={inputStyle}
+              style={getFieldStyle(Boolean(fieldErrors.churchName))}
               type="text"
               maxLength={120}
               value={churchName}
-              onChange={e => setChurchName(e.target.value)}
+              onChange={e => setSingleFieldValue(setChurchName, 'churchName')(e.target.value)}
               onFocus={() => setActiveTypingField('churchName')}
               onBlur={() => setActiveTypingField('')}
               required
@@ -312,17 +396,17 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
           <PhotoField
             label="Church / Commission Logo"
             value={churchLogo}
-            onChange={setChurchLogo}
+            onChange={file => setSingleFieldValue(setChurchLogo, 'churchLogo')(file)}
           />
 
-          <Field label="Church / Commission Address" required>
+          <Field label="Church / Commission Address" required error={fieldErrors.churchAddress}>
             <input
               className={isTypingActive('churchAddress', churchAddress) ? 'field-typing-active' : ''}
-              style={inputStyle}
+              style={getFieldStyle(Boolean(fieldErrors.churchAddress))}
               type="text"
               maxLength={160}
               value={churchAddress}
-              onChange={e => setChurchAddress(e.target.value)}
+              onChange={e => setSingleFieldValue(setChurchAddress, 'churchAddress')(e.target.value)}
               onFocus={() => setActiveTypingField('churchAddress')}
               onBlur={() => setActiveTypingField('')}
               required
@@ -330,14 +414,14 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
             />
           </Field>
 
-          <Field label="General Enquiry Phone Number" required>
+          <Field label="General Enquiry Phone Number" required error={fieldErrors.churchEnquiryPhone}>
             <input
               className={isTypingActive('churchEnquiryPhone', churchEnquiryPhone) ? 'field-typing-active' : ''}
-              style={inputStyle}
+              style={getFieldStyle(Boolean(fieldErrors.churchEnquiryPhone))}
               type="tel"
               maxLength={20}
               value={churchEnquiryPhone}
-              onChange={e => setChurchEnquiryPhone(e.target.value)}
+              onChange={e => setSingleFieldValue(setChurchEnquiryPhone, 'churchEnquiryPhone')(e.target.value)}
               onFocus={() => setActiveTypingField('churchEnquiryPhone')}
               onBlur={() => setActiveTypingField('')}
               required
@@ -346,9 +430,9 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
           </Field>
         </section>
 
-        {error && (
-          <div style={{ marginBottom: 16, padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 6, color: '#000', fontSize: '1.35rem' }}>
-            {error}
+        {submitError && (
+          <div style={{ marginBottom: 16, padding: '0', background: 'none', border: 'none', borderRadius: 0, color: '#dc2626', fontSize: '1.35rem' }}>
+            {submitError}
           </div>
         )}
 
