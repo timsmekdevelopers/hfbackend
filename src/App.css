@@ -214,10 +214,10 @@ body, html, #root, .App {
     width: 0;
   }
   25% {
-    width: 22ch;
+    width: calc(22ch - 0.35ch);
   }
   65% {
-    width: 22ch;
+    width: calc(22ch - 0.35ch);
   }
   90% {
     width: 0;

@@ -71,7 +71,7 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
       {/* OCF Code entry — only shown on the default (home) host */}
       {isDefaultHost && (
         <div style={{ marginBottom: 28 }}>
-          <div style={{ marginBottom: 12, height: '1.8rem', fontSize: '1.9rem', fontWeight: 600, color: '#4169e1', display: 'flex', justifyContent: 'center', width: '100vw', marginLeft: 'calc(-50vw + 50%)' }}>
+          <div style={{ marginBottom: 12, height: '1.8rem', fontSize: '1.615rem', fontWeight: 600, color: '#4169e1', display: 'flex', justifyContent: 'center', width: '100vw', marginLeft: 'calc(-50vw + 50%)' }}>
             <span className={isTypewriterPaused ? '' : 'typewriter'}>
               {isTypewriterPaused ? 'Enter your OCF Code' : 'Enter your OCF Code...'}
             </span>
