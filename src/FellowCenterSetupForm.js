@@ -355,9 +355,9 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
         {/* ── Infrastructure Preferences ── */}
         <section style={sectionStyle}>
           <h3 style={sectionHeadingStyle}>Infrastructure Preferences</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, margin: 0, padding: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, margin: 0, marginLeft: 0, padding: 0, paddingLeft: 0, width: '100%' }}>
 
-          <label style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', gap: 4, cursor: 'pointer', margin: 0, padding: 0, width: '100%' }}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', gap: 4, cursor: 'pointer', margin: 0, marginLeft: 0, padding: 0, paddingLeft: 0, width: '100%' }}>
             <input
               type="checkbox"
               checked={wantsDedicatedDatabase}
@@ -373,7 +373,7 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
             </span>
           </label>
 
-          <label style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', gap: 4, cursor: 'pointer', margin: 0, padding: 0, width: '100%' }}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', gap: 4, cursor: 'pointer', margin: 0, marginLeft: 0, padding: 0, paddingLeft: 0, width: '100%' }}>
             <input
               type="checkbox"
               checked={wantsCustomDomain}
