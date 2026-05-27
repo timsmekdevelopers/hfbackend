@@ -20,7 +20,7 @@ function Field({ label, required, children, error }) {
         {required && <span style={{ color: '#000', marginLeft: 3 }}>*</span>}
       </label>
       {children}
-      {error && <div style={{ marginTop: 6, color: '#dc2626', fontSize: '1rem', fontWeight: 600, background: 'none' }}>{error}</div>}
+      {error && <div style={{ marginTop: 6, color: '#dc2626', fontSize: '1rem', fontWeight: 600, background: 'none', textAlign: 'left' }}>{error}</div>}
     </div>
   );
 }
@@ -40,6 +40,7 @@ const getFieldStyle = (hasError, extraStyle = {}) => ({
   ...inputStyle,
   borderColor: hasError ? '#dc2626' : '#d1d5db',
   boxShadow: hasError ? '0 0 0 1px rgba(220, 38, 38, 0.15)' : 'none',
+  transition: 'border-color 0.2s, box-shadow 0.2s',
   ...extraStyle
 });
 
