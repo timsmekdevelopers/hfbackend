@@ -38,6 +38,12 @@
   background: none;
 }
 
+.form input:focus,
+.form select:focus {
+  outline: none;
+  box-shadow: none;
+}
+
 .primary-btn {
   background: #4169e1;
   color: #fff;

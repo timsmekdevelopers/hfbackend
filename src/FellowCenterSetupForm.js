@@ -355,13 +355,9 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
         {/* ── Infrastructure Preferences ── */}
         <section style={sectionStyle}>
           <h3 style={sectionHeadingStyle}>Infrastructure Preferences</h3>
-          <p style={{ margin: '0 0 14px', fontSize: '1.275rem', color: '#000' }}>
-            These are optional. You can always update these from your Admin settings after your center is approved.
-          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, margin: 0, padding: 0 }}>
 
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12, margin: 0, padding: 0 }}>
-
-          <label style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', gap: 6, cursor: 'pointer', margin: 0, padding: 0, width: '100%' }}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', gap: 4, cursor: 'pointer', margin: 0, padding: 0, width: '100%' }}>
             <input
               type="checkbox"
               checked={wantsDedicatedDatabase}
@@ -369,15 +365,15 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
               style={{ margin: '2px 0 0 0', accentColor: 'var(--theme-primary)', flexShrink: 0 }}
             />
             <span style={{ margin: 0, padding: 0 }}>
-              <strong style={{ display: 'block', fontSize: '1.35rem', color: '#000' }}>Request a dedicated database</strong>
-              <span style={{ fontSize: '1.2rem', color: '#000' }}>
+              <strong style={{ display: 'block', fontSize: '1.35rem', color: '#000', marginBottom: 2, lineHeight: 1.2 }}>Request a dedicated database</strong>
+              <span style={{ display: 'block', margin: 0, fontSize: '1.2rem', color: '#000', lineHeight: 1.2 }}>
                 Your organization's data will be stored in a dedicated MongoDB Atlas database.
                 You will provide the URI from your Admin backend settings.
               </span>
             </span>
           </label>
 
-          <label style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', gap: 6, cursor: 'pointer', margin: 0, padding: 0, width: '100%' }}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', gap: 4, cursor: 'pointer', margin: 0, padding: 0, width: '100%' }}>
             <input
               type="checkbox"
               checked={wantsCustomDomain}
@@ -385,8 +381,8 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
               style={{ margin: '2px 0 0 0', accentColor: 'var(--theme-primary)', flexShrink: 0 }}
             />
             <span style={{ margin: 0, padding: 0 }}>
-              <strong style={{ display: 'block', fontSize: '1.35rem', color: '#000' }}>Request a custom domain name</strong>
-              <span style={{ fontSize: '1.2rem', color: '#000' }}>
+              <strong style={{ display: 'block', fontSize: '1.35rem', color: '#000', marginBottom: 2, lineHeight: 1.2 }}>Request a custom domain name</strong>
+              <span style={{ display: 'block', margin: 0, fontSize: '1.2rem', color: '#000', lineHeight: 1.2 }}>
                 Your Our Church Fellowship will be accessible from your own domain (e.g. mychurch.org).
                 You can configure this from your Admin backend settings.
               </span>
