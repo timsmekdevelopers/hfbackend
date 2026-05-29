@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Country, State, City } from 'country-state-city';
+import { Country } from 'country-state-city';
 import { useTranslation } from './i18n';
 
 function generateTempPassword() {
@@ -32,9 +32,6 @@ function RegisterForm({ onBack, onRegistered, initialRole = '' }) {
   ];
   const countries = useMemo(() => Country.getAllCountries().sort((a, b) => a.name.localeCompare(b.name)), []);
   const selectedCountry = countries.find(c => c.isoCode === country);
-  const states = useMemo(() => (country ? State.getStatesOfCountry(country).sort((a, b) => a.name.localeCompare(b.name)) : []), [country]);
-  const selectedState = states.find(s => s.isoCode === state);
-  const cities = useMemo(() => ((country && state) ? City.getCitiesOfState(country, state).sort((a, b) => a.name.localeCompare(b.name)) : []), [country, state]);
   const dialingCode = selectedCountry ? `+${selectedCountry.phonecode}` : '';
 
 
@@ -45,10 +42,6 @@ function RegisterForm({ onBack, onRegistered, initialRole = '' }) {
   const handleCountryChange = e => {
     setCountry(e.target.value);
     setState('');
-    setCity('');
-  };
-  const handleStateChange = e => {
-    setState(e.target.value);
     setCity('');
   };
 
@@ -79,7 +72,7 @@ function RegisterForm({ onBack, onRegistered, initialRole = '' }) {
           password: tempPassword,
           role,
           country: selectedCountry ? selectedCountry.name : '',
-          state: selectedState ? selectedState.name : '',
+          state: state.trim(),
           city,
           phone: dialingCode + phone,
           address,
@@ -145,28 +138,26 @@ function RegisterForm({ onBack, onRegistered, initialRole = '' }) {
             ))}
           </select>
         </div>
-        {country && (
-          <div className="form-group">
-            <label>{t('state')} <span style={{ color: 'var(--theme-primary)', fontWeight: 500 }}>*</span></label>
-            <select value={state} onChange={handleStateChange} required>
-              <option value="">{t('selectState')}</option>
-              {states.map((s, index) => (
-                <option key={s.isoCode} value={s.isoCode}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
-        {country && state && (
-          <div className="form-group">
-            <label>{t('cityCountyLga')} <span style={{ color: 'var(--theme-primary)', fontWeight: 500 }}>*</span></label>
-            <select value={city} onChange={e => setCity(e.target.value)} required>
-              <option value="">{t('selectCityCountyLga')}</option>
-              {cities.map((cityObj, index) => (
-                <option key={cityObj.name} value={cityObj.name}>{cityObj.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div className="form-group">
+          <label>{t('state')} <span style={{ color: 'var(--theme-primary)', fontWeight: 500 }}>*</span></label>
+          <input
+            type="text"
+            maxLength={60}
+            value={state}
+            onChange={e => setState(e.target.value)}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label>{t('cityCountyLga')} <span style={{ color: 'var(--theme-primary)', fontWeight: 500 }}>*</span></label>
+          <input
+            type="text"
+            maxLength={60}
+            value={city}
+            onChange={e => setCity(e.target.value)}
+            required
+          />
+        </div>
         <div className="form-group">
           <label>{t('phoneNo')} <span style={{ color: 'var(--theme-primary)', fontWeight: 500 }}>*</span></label>
           <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>

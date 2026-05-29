@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Country, State, City } from 'country-state-city';
+import { Country } from 'country-state-city';
 import { useTranslation } from './i18n';
 import { THEMES, applyTheme, THEME_STORAGE_KEY } from './themeUtils';
 
@@ -11,7 +11,7 @@ function SettingsPanel({ user, onClose, onUserUpdated, languageOptions, locale, 
   const [phone, setPhone] = useState(user.phone || '');
   const [address, setAddress] = useState(user.address || '');
   const [country, setCountry] = useState('');
-  const [stateCode, setStateCode] = useState('');
+  const [state, setState] = useState(user.state || '');
   const [city, setCity] = useState(user.city || '');
   const [branchAddress, setBranchAddress] = useState(user.branchAddress || '');
   const [stateHqAddress, setStateHqAddress] = useState(user.stateHqAddress || '');
@@ -25,12 +25,8 @@ function SettingsPanel({ user, onClose, onUserUpdated, languageOptions, locale, 
 
   const countries = useMemo(() => Country.getAllCountries().sort((a, b) => a.name.localeCompare(b.name)), []);
   const selectedCountry = countries.find(c => c.isoCode === country);
-  const states = useMemo(() => (country ? State.getStatesOfCountry(country).sort((a, b) => a.name.localeCompare(b.name)) : []), [country]);
-  const selectedState = states.find(s => s.isoCode === stateCode);
-  const cities = useMemo(() => ((country && stateCode) ? City.getCitiesOfState(country, stateCode).sort((a, b) => a.name.localeCompare(b.name)) : []), [country, stateCode]);
 
-  const handleCountryChange = e => { setCountry(e.target.value); setStateCode(''); setCity(''); };
-  const handleStateChange = e => { setStateCode(e.target.value); setCity(''); };
+  const handleCountryChange = e => { setCountry(e.target.value); };
 
   const persistPreferences = async (updates) => {
     try {
@@ -57,10 +53,10 @@ function SettingsPanel({ user, onClose, onUserUpdated, languageOptions, locale, 
         name: name.trim(),
         phone: phone.trim(),
         address: address.trim(),
+        state: state.trim(),
         city: city.trim()
       };
       if (selectedCountry) body.country = selectedCountry.name;
-      if (selectedState) body.state = selectedState.name;
       if (user.role === 'Branch Pastor') body.branchAddress = branchAddress.trim();
       if (user.role === 'State Pastor') body.stateHqAddress = stateHqAddress.trim();
 
@@ -241,24 +237,14 @@ function SettingsPanel({ user, onClose, onUserUpdated, languageOptions, locale, 
                   {countries.map(c => <option key={c.isoCode} value={c.isoCode}>{c.name}</option>)}
                 </select>
               </div>
-              {states.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <label style={labelStyle}>{t('state')}</label>
-                  <select style={inputStyle} value={stateCode} onChange={handleStateChange}>
-                    <option value="">{user.state || t('selectState')}</option>
-                    {states.map(s => <option key={s.isoCode} value={s.isoCode}>{s.name}</option>)}
-                  </select>
-                </div>
-              )}
-              {cities.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <label style={labelStyle}>{t('cityCountyLga')}</label>
-                  <select style={inputStyle} value={city} onChange={e => setCity(e.target.value)}>
-                    <option value="">{user.city || t('selectCityCountyLga')}</option>
-                    {cities.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                  </select>
-                </div>
-              )}
+              <div style={{ marginBottom: 12 }}>
+                <label style={labelStyle}>{t('state')}</label>
+                <input style={inputStyle} value={state} onChange={e => setState(e.target.value)} maxLength={80} />
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={labelStyle}>{t('cityCountyLga')}</label>
+                <input style={inputStyle} value={city} onChange={e => setCity(e.target.value)} maxLength={80} />
+              </div>
               {user.role === 'Branch Pastor' && (
                 <div style={{ marginBottom: 12 }}>
                   <label style={labelStyle}>{t('addressOfBranch')}</label>

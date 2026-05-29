@@ -211,6 +211,25 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
     return Object.keys(nextErrors).length === 0;
   };
 
+  const readSubmitErrorMessage = async (response) => {
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      try {
+        const data = await response.json();
+        return data?.msg || '';
+      } catch {
+        return '';
+      }
+    }
+
+    try {
+      const text = await response.text();
+      return text.trim();
+    } catch {
+      return '';
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError('');
@@ -235,27 +254,35 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
           churchEnquiryPhone: churchEnquiryPhone.trim()
         })
       });
-      const data = await res.json();
+
+      const message = await readSubmitErrorMessage(res);
       if (!res.ok) {
-        if (data.msg) {
-          const messageMatch = data.msg.match(/^(.+?) is required, please\.$/);
+        if (message) {
+          const messageMatch = message.match(/^(.+?) is required, please\.$/);
           if (messageMatch) {
             const fieldLabel = messageMatch[1];
             const matchedField = requiredFieldDefinitions.find(field => field.label === fieldLabel);
             if (matchedField) {
-              setFieldErrors(prev => ({ ...prev, [matchedField.key]: data.msg }));
+              setFieldErrors(prev => ({ ...prev, [matchedField.key]: message }));
               return;
             }
           }
-          setSubmitError(data.msg);
+          setSubmitError(message);
+        } else {
+          setSubmitError(`Submission failed with status ${res.status}. Please try again.`);
         }
       } else {
         onSubmitted && onSubmitted();
       }
     } catch (err) {
-      setSubmitError('Network error. Please check your connection and try again.');
+      setSubmitError(
+        err?.name === 'TypeError'
+          ? 'Network error. Please check your connection and try again.'
+          : (err?.message || 'Submission failed. Please try again.')
+      );
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   const formContent = (

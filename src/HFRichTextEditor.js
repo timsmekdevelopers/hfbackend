@@ -1,33 +1,11 @@
 import React from 'react';
 import { Editor } from '@tinymce/tinymce-react';
-import 'tinymce/tinymce.min';
-import 'tinymce/icons/default/icons.min';
-import 'tinymce/themes/silver/theme.min';
-import 'tinymce/models/dom/model.min';
-import 'tinymce/plugins/advlist/plugin.min';
-import 'tinymce/plugins/anchor/plugin.min';
-import 'tinymce/plugins/autolink/plugin.min';
-import 'tinymce/plugins/autosave/plugin.min';
-import 'tinymce/plugins/charmap/plugin.min';
-import 'tinymce/plugins/code/plugin.min';
-import 'tinymce/plugins/fullscreen/plugin.min';
-import 'tinymce/plugins/image/plugin.min';
-import 'tinymce/plugins/insertdatetime/plugin.min';
-import 'tinymce/plugins/link/plugin.min';
-import 'tinymce/plugins/lists/plugin.min';
-import 'tinymce/plugins/media/plugin.min';
-import 'tinymce/plugins/preview/plugin.min';
-import 'tinymce/plugins/searchreplace/plugin.min';
-import 'tinymce/plugins/table/plugin.min';
-import 'tinymce/plugins/visualblocks/plugin.min';
-import 'tinymce/plugins/wordcount/plugin.min';
-import 'tinymce/skins/ui/oxide/skin.min.css';
-import 'tinymce/skins/content/default/content.min.css';
 
 export default function HFRichTextEditor({ value, onChange, minHeight = 240 }) {
   return (
     <div style={{ border: '1px solid #d5d9e5', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
       <Editor
+        tinymceScriptSrc="https://cdn.jsdelivr.net/npm/tinymce@6.8.6/tinymce.min.js"
         value={value}
         onEditorChange={(nextValue) => onChange(nextValue)}
         init={{
