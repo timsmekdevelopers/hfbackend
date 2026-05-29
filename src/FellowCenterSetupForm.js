@@ -11,6 +11,83 @@ function readFileAsBase64(file) {
   });
 }
 
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Failed to read compressed image'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function loadImageElement(file) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Failed to load image'));
+    };
+    image.src = objectUrl;
+  });
+}
+
+function canvasToBlob(canvas, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error('Canvas conversion failed'));
+          return;
+        }
+        resolve(blob);
+      },
+      'image/jpeg',
+      quality
+    );
+  });
+}
+
+async function compressImageToTarget(file, targetBytes) {
+  const image = await loadImageElement(file);
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Canvas context unavailable');
+
+  let width = image.naturalWidth || image.width;
+  let height = image.naturalHeight || image.height;
+  let quality = 0.9;
+  let bestBlob = null;
+
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    canvas.width = Math.max(1, Math.round(width));
+    canvas.height = Math.max(1, Math.round(height));
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    const blob = await canvasToBlob(canvas, quality);
+    bestBlob = blob;
+
+    if (blob.size <= targetBytes) {
+      return blobToDataUrl(blob);
+    }
+
+    if (quality > 0.45) {
+      quality -= 0.12;
+    } else {
+      width *= 0.86;
+      height *= 0.86;
+      quality = 0.9;
+    }
+  }
+
+  return bestBlob ? blobToDataUrl(bestBlob) : readFileAsBase64(file);
+}
+
 // ─── Reusable field wrapper ───────────────────────────────────────────────
 function Field({ label, required, children, error }) {
   return (
@@ -62,21 +139,22 @@ const sectionHeadingStyle = {
 };
 
 // ─── Photo upload field ───────────────────────────────────────────────────
-function PhotoField({ label, value, onChange, required, error }) {
+function PhotoField({ label, value, onChange, required, error, targetKb }) {
   const inputRef = useRef();
 
   const handleFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Image must be smaller than 2 MB.');
+    if (!file.type || !file.type.startsWith('image/')) {
       return;
     }
+
     try {
-      const b64 = await readFileAsBase64(file);
+      const b64 = await compressImageToTarget(file, targetKb * 1024);
       onChange(b64);
     } catch {
-      alert('Could not read the selected file.');
+      const b64 = await readFileAsBase64(file);
+      onChange(b64);
     }
   };
 
@@ -120,10 +198,10 @@ function PhotoField({ label, value, onChange, required, error }) {
           >
             {value ? 'Change photo' : 'Upload photo'}
           </button>
-          <div style={{ fontSize: '1.125rem', color: '#000', marginTop: 4 }}>JPG, PNG. Max 2 MB.</div>
+          <div style={{ fontSize: '1.125rem', color: '#000', marginTop: 4 }}>Compressed automatically before upload.</div>
         </div>
       </div>
-      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFile} style={{ display: 'none' }} />
+      <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
     </Field>
   );
 }
@@ -399,6 +477,7 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
             value={passportPhoto}
             onChange={file => setSingleFieldValue(setPassportPhoto, 'passportPhoto')(file)}
             error={fieldErrors.passportPhoto}
+            targetKb={100}
           />
         </section>
 
@@ -425,6 +504,7 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
             label="Church / Commission Logo"
             value={churchLogo}
             onChange={file => setSingleFieldValue(setChurchLogo, 'churchLogo')(file)}
+            targetKb={30}
           />
 
           <Field label="Church / Commission Address" required error={fieldErrors.churchAddress}>
