@@ -468,6 +468,7 @@ function App() {
   return (
     <div className="App">
       <OrgNavbar org={org} />
+      <div className="app-body-bg">
       {showPageLoader ? (
         <AppLoadingScreen org={org} effectClass={loadEffectClass} />
       ) : (
@@ -539,6 +540,7 @@ function App() {
         </Suspense>
       </header>
       )}
+      </div>
       <AppFooter org={org} />
     </div>
   );

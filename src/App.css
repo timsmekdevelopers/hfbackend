@@ -12,9 +12,10 @@
 
 :root {
   --theme-primary: #4169e1;
+  --theme-primary-rgb: 65, 105, 225;
   --theme-primary-dark: #27408b;
   --theme-page-bg: rgba(65, 105, 225, 0.5);
-  --theme-page-bg-soft: rgba(65, 105, 225, 0.35);
+  --theme-page-bg-soft: rgba(65, 105, 225, 0.25);
 }
 
 .form h2 {
@@ -107,7 +108,7 @@ body, html, #root, .App {
   margin: 0;
   padding: 0;
   font-family: Arial, sans-serif;
-  background: var(--theme-page-bg, #4169e1);
+  background-color: #f3f4f6;
 }
 
 .App {
@@ -116,16 +117,18 @@ body, html, #root, .App {
   min-height: 100vh;
 }
 
+.app-body-bg {
+  flex: 1;
+  background-color: var(--theme-page-bg, rgba(65, 105, 225, 0.5));
+}
+
 .App-header {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background:
-    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 48%),
-    radial-gradient(circle at 85% 12%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 42%),
-    linear-gradient(150deg, var(--theme-page-bg, rgba(65, 105, 225, 0.5)) 0%, var(--theme-page-bg-soft, rgba(65, 105, 225, 0.35)) 100%);
+  background: transparent;
   padding: 2rem;
   color: #fff;
 }
@@ -214,10 +217,7 @@ body, html, #root, .App {
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  background:
-    radial-gradient(circle at 14% 18%, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 40%),
-    radial-gradient(circle at 85% 22%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 42%),
-    var(--theme-page-bg, #4169e1);
+  background: transparent;
 }
 
 .app-global-loader-inner {

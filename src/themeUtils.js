@@ -34,11 +34,13 @@ export const THEMES = [
 
 export function applyTheme(key) {
   const theme = THEMES.find((t) => t.key === key) || THEMES[0];
+  const { r, g, b } = hexToRgb(theme.primary);
   document.documentElement.style.setProperty('--theme-primary', theme.primary);
+  document.documentElement.style.setProperty('--theme-primary-rgb', `${r}, ${g}, ${b}`);
   document.documentElement.style.setProperty('--theme-primary-dark', theme.dark);
   document.documentElement.style.setProperty('--theme-sidebar-bg', theme.sidebar);
-  document.documentElement.style.setProperty('--theme-page-bg', rgba(theme.primary, 0.5));
-  document.documentElement.style.setProperty('--theme-page-bg-soft', rgba(theme.primary, 0.35));
+  document.documentElement.style.setProperty('--theme-page-bg', `rgba(${r}, ${g}, ${b}, 0.5)`);
+  document.documentElement.style.setProperty('--theme-page-bg-soft', `rgba(${r}, ${g}, ${b}, 0.25)`);
   document.documentElement.style.setProperty('--theme-soft-bg', rgba(theme.primary, 0.08));
   document.documentElement.style.setProperty('--theme-soft-border', rgba(theme.primary, 0.24));
   document.documentElement.style.setProperty('--theme-text-strong', theme.dark);
