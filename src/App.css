@@ -103,6 +103,31 @@
   color: #000;
   font-style: italic;
 }
+
+.admin-nav-tab {
+  width: 100%;
+  border: none;
+  border-left: 4px solid transparent;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.88);
+  text-align: left;
+  padding: 12px 14px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease, border-left-color 0.18s ease;
+}
+
+.admin-nav-tab:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.admin-nav-tab.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-left-color: #fff;
+}
 body, html, #root, .App {
   height: 100%;
   margin: 0;
