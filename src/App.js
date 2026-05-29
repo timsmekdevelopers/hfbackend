@@ -149,6 +149,13 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
         <button
+          onClick={onChooseMember}
+          className="primary-btn"
+          style={{ minWidth: 220, marginBottom: 6 }}
+        >
+          Member Login
+        </button>
+        <button
           onClick={onChoosePastor}
           style={{
             background: 'none',
