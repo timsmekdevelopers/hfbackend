@@ -13,7 +13,8 @@
 :root {
   --theme-primary: #4169e1;
   --theme-primary-dark: #27408b;
-  --theme-page-bg: #4169e1;
+  --theme-page-bg: rgba(65, 105, 225, 0.5);
+  --theme-page-bg-soft: rgba(65, 105, 225, 0.35);
 }
 
 .form h2 {
@@ -124,7 +125,7 @@ body, html, #root, .App {
   background:
     radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 48%),
     radial-gradient(circle at 85% 12%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 42%),
-    linear-gradient(150deg, var(--theme-page-bg, #4169e1) 0%, var(--theme-primary-dark, #27408b) 100%);
+    linear-gradient(150deg, var(--theme-page-bg, rgba(65, 105, 225, 0.5)) 0%, var(--theme-page-bg-soft, rgba(65, 105, 225, 0.35)) 100%);
   padding: 2rem;
   color: #fff;
 }

@@ -37,8 +37,8 @@ export function applyTheme(key) {
   document.documentElement.style.setProperty('--theme-primary', theme.primary);
   document.documentElement.style.setProperty('--theme-primary-dark', theme.dark);
   document.documentElement.style.setProperty('--theme-sidebar-bg', theme.sidebar);
-  document.documentElement.style.setProperty('--theme-page-bg', theme.primary);
-  document.documentElement.style.setProperty('--theme-page-bg-soft', rgba(theme.primary, 0.85));
+  document.documentElement.style.setProperty('--theme-page-bg', rgba(theme.primary, 0.5));
+  document.documentElement.style.setProperty('--theme-page-bg-soft', rgba(theme.primary, 0.35));
   document.documentElement.style.setProperty('--theme-soft-bg', rgba(theme.primary, 0.08));
   document.documentElement.style.setProperty('--theme-soft-border', rgba(theme.primary, 0.24));
   document.documentElement.style.setProperty('--theme-text-strong', theme.dark);
