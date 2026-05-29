@@ -151,7 +151,7 @@ function SettingsPanel({ user, onClose, onUserUpdated, languageOptions, locale, 
               <input style={inputStyle} value={address} onChange={e => setAddress(e.target.value)} maxLength={160} />
             </div>
             {saveMsg && <div style={{ marginBottom: 10, color: saveMsg === t('profileUpdated') ? '#2e7d32' : '#c62828', fontSize: '0.9rem' }}>{saveMsg}</div>}
-            <button type="submit" className="primary-btn" disabled={saving} style={{ width: '100%' }}>
+            <button type="submit" className={`primary-btn processing-btn ${saving ? 'is-processing' : ''}`} aria-busy={saving} disabled={saving} style={{ width: '100%' }}>
               {saving ? '…' : t('saveChanges')}
             </button>
           </form>
@@ -274,7 +274,7 @@ function SettingsPanel({ user, onClose, onUserUpdated, languageOptions, locale, 
               {saveMsg && (
                 <div style={{ marginBottom: 10, color: saveMsg === t('profileUpdated') ? '#2e7d32' : '#c62828', fontSize: '0.9rem' }}>{saveMsg}</div>
               )}
-              <button type="submit" className="primary-btn" disabled={saving} style={{ width: '100%' }}>
+              <button type="submit" className={`primary-btn processing-btn ${saving ? 'is-processing' : ''}`} aria-busy={saving} disabled={saving} style={{ width: '100%' }}>
                 {saving ? '…' : t('saveChanges')}
               </button>
             </form>
@@ -537,6 +537,9 @@ function OrgSettingsSection({ user, labelStyle, inputStyle, onOrgUpdated, extern
     validating: '#92400e', validated: '#1d4ed8',
     migrating: '#7c3aed', done: '#15803d', error: '#b91c1c'
   };
+  const isDomainVerifyBusy = domainVerifyStep === 'starting' || domainVerifyStep === 'checking';
+  const isMigrationValidating = migrateStep === 'validating';
+  const isMigrationRunning = migrateStep === 'migrating';
 
   if (loading) return null;
 
@@ -668,7 +671,7 @@ function OrgSettingsSection({ user, labelStyle, inputStyle, onOrgUpdated, extern
                   <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: 8 }}>
                     First-time setup — paste your MongoDB Atlas connection string. Keep this private.
                   </div>
-                  <button type="button" className="primary-btn" disabled={saving || !firstTimeUri.trim()} onClick={handleFirstTimeUri}>
+                  <button type="button" className={`primary-btn processing-btn ${saving ? 'is-processing' : ''}`} aria-busy={saving} disabled={saving || !firstTimeUri.trim()} onClick={handleFirstTimeUri}>
                     {saving ? 'Saving…' : 'Activate Database'}
                   </button>
                 </div>
@@ -686,7 +689,7 @@ function OrgSettingsSection({ user, labelStyle, inputStyle, onOrgUpdated, extern
                         onChange={e => { setNewDbUri(e.target.value); if (migrateStep === 'error') setMigrateStep('need-new-uri'); }}
                         placeholder="mongodb+srv://user:pass@newcluster.mongodb.net/dbname" maxLength={400} />
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button type="button" className="primary-btn" disabled={!newDbUri.trim()} onClick={handleValidateUri}>
+                        <button type="button" className={`primary-btn processing-btn ${isMigrationValidating ? 'is-processing' : ''}`} aria-busy={isMigrationValidating} disabled={!newDbUri.trim() || isMigrationValidating || isMigrationRunning} onClick={handleValidateUri}>
                           Test Connection
                         </button>
                         <button type="button" onClick={() => { setMigrateStep('idle'); setNewDbUri(''); setMigrateMsg(''); }}
@@ -712,7 +715,7 @@ function OrgSettingsSection({ user, labelStyle, inputStyle, onOrgUpdated, extern
                         existing cluster until the copy is fully verified. Do not close this window during migration.
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button type="button" className="primary-btn" onClick={handleMigrate}>
+                        <button type="button" className={`primary-btn processing-btn ${isMigrationRunning ? 'is-processing' : ''}`} aria-busy={isMigrationRunning} disabled={isMigrationRunning} onClick={handleMigrate}>
                           Migrate &amp; Switch
                         </button>
                         <button type="button" onClick={() => { setMigrateStep('need-new-uri'); setMigrateMsg(''); }}
@@ -820,6 +823,8 @@ function OrgSettingsSection({ user, labelStyle, inputStyle, onOrgUpdated, extern
                         <strong>Step 2 — Prove ownership:</strong> Click below to get a unique verification token, then add it as a TXT record.
                       </div>
                       <button type="button"
+                        className={`processing-btn ${domainVerifyStep === 'starting' ? 'is-processing' : ''}`}
+                        aria-busy={domainVerifyStep === 'starting'}
                         onClick={handleStartVerify}
                         disabled={domainVerifyStep === 'starting'}
                         style={{ padding: '7px 16px', background: 'var(--theme-soft-bg)', border: '1px solid var(--theme-soft-border)', borderRadius: 5, cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--theme-text-strong)' }}>
@@ -843,20 +848,17 @@ function OrgSettingsSection({ user, labelStyle, inputStyle, onOrgUpdated, extern
                       <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: 10 }}>
                         DNS records can take a few minutes to propagate. Once both the DNS routing record (CNAME/A) and this TXT record are added, click the button below.
                       </div>
-                      {domainVerifyStep === 'checking' ? (
-                        <div style={{ fontSize: '0.85rem', color: '#7c3aed' }}>⏳ Checking DNS records…</div>
-                      ) : (
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button type="button" className="primary-btn" onClick={handleCheckDns}>
-                            Check DNS &amp; Verify
-                          </button>
-                          <button type="button"
-                            onClick={() => { setDomainVerifyStep('idle'); setDomainToken(''); setDomainVerifyMsg(''); }}
-                            style={{ padding: '7px 14px', background: '#fff', border: '1px solid #d1d5db', borderRadius: 5, cursor: 'pointer', fontSize: '0.875rem' }}>
-                            Back
-                          </button>
-                        </div>
-                      )}
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button type="button" className={`primary-btn processing-btn ${domainVerifyStep === 'checking' ? 'is-processing' : ''}`} aria-busy={domainVerifyStep === 'checking'} onClick={handleCheckDns} disabled={isDomainVerifyBusy}>
+                          Check DNS &amp; Verify
+                        </button>
+                        <button type="button"
+                          onClick={() => { setDomainVerifyStep('idle'); setDomainToken(''); setDomainVerifyMsg(''); }}
+                          disabled={isDomainVerifyBusy}
+                          style={{ padding: '7px 14px', background: '#fff', border: '1px solid #d1d5db', borderRadius: 5, cursor: 'pointer', fontSize: '0.875rem' }}>
+                          Back
+                        </button>
+                      </div>
                     </>
                   )}
 
@@ -989,7 +991,7 @@ function OrgSettingsSection({ user, labelStyle, inputStyle, onOrgUpdated, extern
             </div>
           </div>
 
-          <button type="submit" className="primary-btn" disabled={saving} style={{ width: '100%' }}>
+          <button type="submit" className={`primary-btn processing-btn ${saving ? 'is-processing' : ''}`} aria-busy={saving} disabled={saving} style={{ width: '100%' }}>
             {saving ? 'Saving…' : 'Save Organization Settings'}
           </button>
         </form>

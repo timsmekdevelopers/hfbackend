@@ -107,6 +107,8 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
               </div>
               <button
                 type="submit"
+                className={`processing-btn ${status === 'loading' ? 'is-processing' : ''}`}
+                aria-busy={status === 'loading'}
                 disabled={status === 'loading' || code.trim().length === 0}
                 style={{
                   padding: '0 22px',
@@ -121,7 +123,7 @@ function LandingChooser({ onChoosePastor, onChooseMember, onOCFFound }) {
                   opacity: code.trim().length === 0 || status === 'loading' ? 0.6 : 1
                 }}
               >
-                {status === 'loading' ? '...' : 'Go'}
+                Go
               </button>
             </div>
           </form>
@@ -202,6 +204,36 @@ const DEFAULT_HOSTS = new Set([
   'hffrontend.vercel.app'
 ]);
 
+function hashString(value) {
+  const input = String(value || 'default');
+  let hash = 0;
+  for (let index = 0; index < input.length; index += 1) {
+    hash = ((hash << 5) - hash + input.charCodeAt(index)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function getOrgLoadEffectClass(org) {
+  const effectClasses = ['load-effect-orbit', 'load-effect-pulse', 'load-effect-spark', 'load-effect-ripple'];
+  const orgSeed = org?.organization_id || org?.customDomain || org?.name || 'default';
+  return effectClasses[hashString(orgSeed) % effectClasses.length];
+}
+
+function AppLoadingScreen({ org, effectClass }) {
+  const logoSrc = org?.logo || `${process.env.PUBLIC_URL}/OCF-logo.png`;
+  const title = org?.name || 'Our Church Fellowship';
+
+  return (
+    <div className={`app-global-loader ${effectClass}`}>
+      <div className="app-global-loader-inner" role="status" aria-live="polite" aria-label="Loading page">
+        <div className="app-global-loader-ring" aria-hidden="true" />
+        <img src={logoSrc} alt={`${title} logo`} className="app-global-loader-logo" />
+        <p className="app-global-loader-name">{title}</p>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   // 'landing' | 'login' | 'register' | 'pastor-setup' | 'pastor-success'
   const [screen, setScreen] = useState('landing');
@@ -210,6 +242,8 @@ function App() {
   const [showReset, setShowReset] = useState(false);
   const [user, setUser] = useState(null);
   const [org, setOrg] = useState(null); // organization linked to Admin user
+  const [bootLoading, setBootLoading] = useState(true);
+  const [orgLookupLoading, setOrgLookupLoading] = useState(!DEFAULT_HOSTS.has(window.location.hostname));
 
   const logoStars = useMemo(() => {
     const randomBetween = (min, max) => Math.random() * (max - min) + min;
@@ -254,18 +288,39 @@ function App() {
   // fetchOrg on success, overwriting with the same or an updated org object).
   useEffect(() => {
     const hostname = window.location.hostname;
-    if (DEFAULT_HOSTS.has(hostname)) return; // on the default host — nothing to do
+    if (DEFAULT_HOSTS.has(hostname)) {
+      setOrgLookupLoading(false);
+      return;
+    }
+
+    let cancelled = false;
 
     fetch(`/api/organizations/by-domain?hostname=${encodeURIComponent(hostname)}`)
       .then(r => (r.ok ? r.json() : null))
       .then(data => {
+        if (cancelled) return;
         if (data) {
           setOrg(data);
           applyTheme(data.themeKey || 'default');
         }
       })
-      .catch(() => { /* custom domain lookup failed — use default branding */ });
+      .catch(() => { /* custom domain lookup failed — use default branding */ })
+      .finally(() => {
+        if (!cancelled) setOrgLookupLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const timer = setTimeout(() => setBootLoading(false), 900);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const loadEffectClass = useMemo(() => getOrgLoadEffectClass(org), [org]);
+  const showPageLoader = bootLoading || orgLookupLoading;
 
   const handleLoginSuccess = (userObj) => {
     setUser(userObj);
@@ -413,8 +468,11 @@ function App() {
   return (
     <div className="App">
       <OrgNavbar org={org} />
+      {showPageLoader ? (
+        <AppLoadingScreen org={org} effectClass={loadEffectClass} />
+      ) : (
       <header className="App-header">
-        <Suspense fallback={<div style={{ color: '#fff', opacity: 0.8 }}>Loading...</div>}>
+        <Suspense fallback={<AppLoadingScreen org={org} effectClass={loadEffectClass} />}>
         {/* When accessed via a custom org domain, replace the default logo/title
             with the organization's own branding. On the default host this section
             is hidden and the generic logo below shows instead. */}
@@ -480,6 +538,7 @@ function App() {
         </Dialog>
         </Suspense>
       </header>
+      )}
       <AppFooter org={org} />
     </div>
   );

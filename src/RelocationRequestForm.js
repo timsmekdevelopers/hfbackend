@@ -112,7 +112,7 @@ export default function RelocationRequestForm({ user }) {
           </select>
         </label>
 
-        <button className="primary-btn" type="submit" disabled={submitting || !targetLeaderId}>
+        <button className={`primary-btn processing-btn ${submitting ? 'is-processing' : ''}`} type="submit" aria-busy={submitting} disabled={submitting || !targetLeaderId}>
           {submitting ? 'Submitting...' : 'Submit Relocation Application'}
         </button>
       </form>

@@ -246,7 +246,7 @@ function RegisterForm({ onBack, onRegistered, initialRole = '' }) {
             </div>
           </>
         )}
-        <button type="submit" className="primary-btn" disabled={submitting}>
+        <button type="submit" className={`primary-btn processing-btn ${submitting ? 'is-processing' : ''}`} aria-busy={submitting} disabled={submitting}>
           {submitting ? t('registering') : t('registerAsRole', { role: roles.find((item) => item.value === role)?.label || '...' })}
         </button>
       </form>

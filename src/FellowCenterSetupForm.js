@@ -442,8 +442,9 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
         </p>
 
         <button
-          className="floating-submit-btn"
+          className={`floating-submit-btn processing-btn ${submitting ? 'is-processing' : ''}`}
           type="submit"
+          aria-busy={submitting}
           disabled={submitting}
           style={{
             width: 'fit-content',

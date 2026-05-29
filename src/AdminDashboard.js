@@ -163,6 +163,7 @@ function DocumentsCenter({ user, t, languageOptions, locale }) {
   const [latestGuide, setLatestGuide] = useState(null);
   const [selectedLocale, setSelectedLocale] = useState(locale || 'en-US');
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState('');
   const [error, setError] = useState('');
 
   const availableLangs = Array.isArray(languageOptions) && languageOptions.length
@@ -216,6 +217,8 @@ function DocumentsCenter({ user, t, languageOptions, locale }) {
   }, [selectedLocale, user?._id]);
 
   const downloadDoc = async (doc) => {
+    if (!doc?._id) return;
+    setDownloadingId(String(doc._id));
     try {
       const params = new URLSearchParams({
         userId: user._id,
@@ -240,6 +243,8 @@ function DocumentsCenter({ user, t, languageOptions, locale }) {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       window.alert(err.message || t('downloadFailed'));
+    } finally {
+      setDownloadingId('');
     }
   };
 
@@ -254,7 +259,7 @@ function DocumentsCenter({ user, t, languageOptions, locale }) {
                     <div style={{ fontWeight: 700, color: 'var(--theme-text-strong)' }}>{doc.topic}</div>
             <div style={{ color: 'var(--theme-text-muted)', fontSize: 12 }}>{t('date')}: {doc.date}</div>
           </div>
-          <button className="primary-btn" onClick={() => downloadDoc(doc)}>{t('downloadPdf')}</button>
+          <button className={`primary-btn processing-btn ${downloadingId === String(doc._id) ? 'is-processing' : ''}`} aria-busy={downloadingId === String(doc._id)} onClick={() => downloadDoc(doc)} disabled={downloadingId === String(doc._id)}>{t('downloadPdf')}</button>
         </div>
       )}
     </div>
@@ -394,7 +399,7 @@ function DocumentComposer({ user, t, type }) {
         </Suspense>
 
         <div>
-          <button className="primary-btn" disabled={loading}>
+          <button className={`primary-btn processing-btn ${loading ? 'is-processing' : ''}`} aria-busy={loading} disabled={loading}>
             {loading ? t('savingDoc') : t('publishDoc')}
           </button>
         </div>
@@ -599,7 +604,7 @@ function RelocationApplications({ user, t }) {
                 To: {item?.toCenter?.leaderName || '-'} ({item?.toCenter?.city || '-'}, {item?.toCenter?.state || '-'})
               </div>
               <div style={{ marginTop: 8, display: 'flex', gap: 10 }}>
-                <button className="primary-btn" onClick={() => review(item._id, 'approved')} disabled={reviewingId === item._id}>Approve</button>
+                <button className={`primary-btn processing-btn ${reviewingId === item._id ? 'is-processing' : ''}`} aria-busy={reviewingId === item._id} onClick={() => review(item._id, 'approved')} disabled={reviewingId === item._id}>Approve</button>
                 <button className="link-btn" style={{ color: '#c62828' }} onClick={() => review(item._id, 'rejected')} disabled={reviewingId === item._id}>Reject</button>
               </div>
             </div>
@@ -700,7 +705,7 @@ function AnnouncementsManager({ user, t }) {
           style={{ flex: 1, padding: '7px 10px', borderRadius: 6, border: '1px solid var(--theme-soft-border)', fontSize: 14 }}
           disabled={loading}
         />
-        <button type="submit" className="primary-btn" disabled={loading || !newText.trim()}>
+        <button type="submit" className={`primary-btn processing-btn ${loading ? 'is-processing' : ''}`} aria-busy={loading} disabled={loading || !newText.trim()}>
           {t('addAnnouncement')}
         </button>
       </form>
@@ -721,7 +726,7 @@ function AnnouncementsManager({ user, t }) {
                     disabled={loading}
                     autoFocus
                   />
-                  <button className="primary-btn" onClick={() => handleUpdate(item._id)} disabled={loading || !editText.trim()}>{t('save')}</button>
+                  <button className={`primary-btn processing-btn ${loading ? 'is-processing' : ''}`} aria-busy={loading} onClick={() => handleUpdate(item._id)} disabled={loading || !editText.trim()}>{t('save')}</button>
                   <button className="link-btn" onClick={() => { setEditId(null); setEditText(''); }}>{t('cancel')}</button>
                 </>
               ) : (
@@ -830,7 +835,7 @@ function ScheduleManager({ user, t }) {
           style={{ flex: 1, padding: '7px 10px', borderRadius: 6, border: '1px solid var(--theme-soft-border)', fontSize: 14 }}
           disabled={loading}
         />
-        <button type="submit" className="primary-btn" disabled={loading || !newText.trim()}>
+        <button type="submit" className={`primary-btn processing-btn ${loading ? 'is-processing' : ''}`} aria-busy={loading} disabled={loading || !newText.trim()}>
           {t('addSchedule')}
         </button>
       </form>
@@ -851,7 +856,7 @@ function ScheduleManager({ user, t }) {
                     disabled={loading}
                     autoFocus
                   />
-                  <button className="primary-btn" onClick={() => handleUpdate(item._id)} disabled={loading || !editText.trim()}>{t('save')}</button>
+                  <button className={`primary-btn processing-btn ${loading ? 'is-processing' : ''}`} aria-busy={loading} onClick={() => handleUpdate(item._id)} disabled={loading || !editText.trim()}>{t('save')}</button>
                   <button className="link-btn" onClick={() => { setEditId(null); setEditText(''); }}>{t('cancel')}</button>
                 </>
               ) : (
@@ -878,6 +883,7 @@ function FellowCentersPanel() {
   const [subTab, setSubTab] = useState('requests');
   const [reviewNote, setReviewNote] = useState('');
   const [actionId, setActionId] = useState(null);
+  const [actionLoadingId, setActionLoadingId] = useState('');
   const [msg, setMsg] = useState('');
 
   const load = useCallback(async () => {
@@ -896,6 +902,8 @@ function FellowCentersPanel() {
   useEffect(() => { load(); }, [load]);
 
   const handleAction = async (id, action) => {
+    if (!id || actionLoadingId) return;
+    setActionLoadingId(String(id));
     setMsg('');
     try {
       const res = await fetch(`/api/organizations/setup-requests/${id}/${action}`, {
@@ -907,6 +915,7 @@ function FellowCentersPanel() {
       setMsg(data.msg || (res.ok ? 'Done.' : 'Error.'));
       if (res.ok) { setActionId(null); setReviewNote(''); load(); }
     } catch { setMsg('Network error.'); }
+    setActionLoadingId('');
   };
 
   const cardStyle = { border: '1px solid var(--theme-soft-border)', borderRadius: 10, padding: '14px 18px', marginBottom: 14, background: 'var(--theme-surface)' };
@@ -973,13 +982,13 @@ function FellowCentersPanel() {
                         style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.875rem' }}
                       />
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => handleAction(req._id, 'approve')} className="primary-btn" style={{ flex: 1, fontSize: '0.85rem', padding: '6px 0' }}>Approve &amp; Create Org</button>
-                        <button onClick={() => handleAction(req._id, 'reject')} style={{ flex: 1, fontSize: '0.85rem', padding: '6px 0', background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5', borderRadius: 5, cursor: 'pointer', fontWeight: 600 }}>Reject</button>
-                        <button onClick={() => { setActionId(null); setReviewNote(''); }} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #d1d5db', borderRadius: 5, cursor: 'pointer', fontSize: '0.85rem' }}>Cancel</button>
+                        <button onClick={() => handleAction(req._id, 'approve')} className={`primary-btn processing-btn ${actionLoadingId === String(req._id) ? 'is-processing' : ''}`} aria-busy={actionLoadingId === String(req._id)} disabled={actionLoadingId === String(req._id)} style={{ flex: 1, fontSize: '0.85rem', padding: '6px 0' }}>Approve &amp; Create Org</button>
+                        <button onClick={() => handleAction(req._id, 'reject')} className={`processing-btn ${actionLoadingId === String(req._id) ? 'is-processing' : ''}`} aria-busy={actionLoadingId === String(req._id)} disabled={actionLoadingId === String(req._id)} style={{ flex: 1, fontSize: '0.85rem', padding: '6px 0', background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5', borderRadius: 5, cursor: 'pointer', fontWeight: 600 }}>Reject</button>
+                        <button onClick={() => { setActionId(null); setReviewNote(''); }} disabled={actionLoadingId === String(req._id)} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #d1d5db', borderRadius: 5, cursor: 'pointer', fontSize: '0.85rem' }}>Cancel</button>
                       </div>
                     </div>
                   ) : (
-                    <button onClick={() => setActionId(req._id)} style={{ padding: '5px 14px', background: 'var(--theme-soft-bg)', border: '1px solid var(--theme-soft-border)', borderRadius: 5, cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--theme-text-strong)' }}>
+                    <button onClick={() => setActionId(req._id)} disabled={Boolean(actionLoadingId)} style={{ padding: '5px 14px', background: 'var(--theme-soft-bg)', border: '1px solid var(--theme-soft-border)', borderRadius: 5, cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--theme-text-strong)' }}>
                       Review
                     </button>
                   )}

@@ -14,6 +14,7 @@ export default function ManualLibrary({ user, languageOptions, locale }) {
   const [manualMax, setManualMax] = useState(3);
   const [guideMax, setGuideMax] = useState(3);
   const [langByDoc, setLangByDoc] = useState({});
+  const [downloadingId, setDownloadingId] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -98,6 +99,8 @@ export default function ManualLibrary({ user, languageOptions, locale }) {
   }, [user?._id]);
 
   const downloadDocument = async (doc) => {
+    if (!doc?._id) return;
+    setDownloadingId(String(doc._id));
     try {
       const selectedLocale = langByDoc[doc._id] || locale || 'en-US';
       const params = new URLSearchParams({
@@ -127,6 +130,8 @@ export default function ManualLibrary({ user, languageOptions, locale }) {
       }
     } catch (err) {
       window.alert(err.message || t('downloadFailed'));
+    } finally {
+      setDownloadingId('');
     }
   };
 
@@ -160,7 +165,7 @@ export default function ManualLibrary({ user, languageOptions, locale }) {
                         <option key={lang.value} value={lang.value}>{lang.label}</option>
                       ))}
                     </select>
-                    <button className="primary-btn" onClick={() => downloadDocument(doc)} disabled={String(user.role).toLowerCase() !== 'admin' && remaining <= 0}>
+                    <button className={`primary-btn processing-btn ${downloadingId === String(doc._id) ? 'is-processing' : ''}`} aria-busy={downloadingId === String(doc._id)} onClick={() => downloadDocument(doc)} disabled={(String(user.role).toLowerCase() !== 'admin' && remaining <= 0) || downloadingId === String(doc._id)}>
                       {t('downloadPdf')}
                     </button>
                   </div>

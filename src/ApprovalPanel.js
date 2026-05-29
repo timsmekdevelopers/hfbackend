@@ -53,8 +53,8 @@ function ApprovalPanel({ approver, onAction }) {
           <b>{t('email')}:</b> {user.email}<br />
           <b>{t('role')}:</b> {user.role}<br />
           <b>{t('applied')}:</b> {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : ''}<br />
-          <button className="primary-btn" disabled={actionLoading === user._id} onClick={() => handleApprove(user)} style={{ marginRight: 8 }}>{t('approve')}</button>
-          <button className="secondary-btn" disabled={actionLoading === user._id} onClick={() => handleReject(user)}>{t('reject')}</button>
+          <button className={`primary-btn processing-btn ${actionLoading === user._id ? 'is-processing' : ''}`} aria-busy={actionLoading === user._id} disabled={actionLoading === user._id} onClick={() => handleApprove(user)} style={{ marginRight: 8 }}>{t('approve')}</button>
+          <button className={`secondary-btn processing-btn ${actionLoading === user._id ? 'is-processing' : ''}`} aria-busy={actionLoading === user._id} disabled={actionLoading === user._id} onClick={() => handleReject(user)}>{t('reject')}</button>
         </div>
       ))}
     </div>

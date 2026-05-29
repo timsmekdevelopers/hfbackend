@@ -135,7 +135,7 @@ function LoginForm({ autofill, onFirstLogin, onLogin, showReset, onResetDone }) 
           </div>
         </>
       )}
-      <button type="submit" className="primary-btn" disabled={submitting}>
+      <button type="submit" className={`primary-btn processing-btn ${submitting ? 'is-processing' : ''}`} aria-busy={submitting} disabled={submitting}>
         {showResetFields ? 'Reset and continue' : 'Login'}
       </button>
     </form>

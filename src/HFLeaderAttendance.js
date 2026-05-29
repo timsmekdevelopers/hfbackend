@@ -133,7 +133,7 @@ export default function HFLeaderAttendance({ user }) {
           )}
         </div>
 
-        <button className="primary-btn" type="submit" disabled={submitting}>
+        <button className={`primary-btn processing-btn ${submitting ? 'is-processing' : ''}`} type="submit" aria-busy={submitting} disabled={submitting}>
           {submitting ? 'Submitting...' : 'Submit Attendance'}
         </button>
       </form>
