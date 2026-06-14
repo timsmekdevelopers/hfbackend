@@ -208,9 +208,6 @@ function PhotoField({ label, value, onChange, required, error, targetKb }) {
 
 // ─── Main component ───────────────────────────────────────────────────────
 export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
-  const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
-  const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
-
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   useEffect(() => {
@@ -219,16 +216,13 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, []);
+
   // Personal info
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [emailVerificationCode, setEmailVerificationCode] = useState('');
-  const [verifiedEmail, setVerifiedEmail] = useState('');
-  const [emailVerificationStatus, setEmailVerificationStatus] = useState('');
-  const [emailVerificationMessage, setEmailVerificationMessage] = useState('');
-  const [requestingEmailCode, setRequestingEmailCode] = useState(false);
-  const [verifyingEmailCode, setVerifyingEmailCode] = useState(false);
-  const [autoRequestedEmail, setAutoRequestedEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [position, setPosition] = useState('');
@@ -246,6 +240,17 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
   const [submitError, setSubmitError] = useState('');
   const [activeTypingField, setActiveTypingField] = useState('');
 
+  // Email verification (step 0)
+  const timerRef = useRef(null);
+  const [step, setStep] = useState(0);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [checkingCode, setCheckingCode] = useState(false);
+  const [codeError, setCodeError] = useState('');
+  const [resendCooldownSecs, setResendCooldownSecs] = useState(0);
+  const [emailSendCount, setEmailSendCount] = useState(0);
+
   const isTypingActive = (fieldName, value) => (
     activeTypingField === fieldName && typeof value === 'string' && value.trim().length > 0
   );
@@ -256,9 +261,6 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
   );
   const selectedCountry = countries.find(c => c.isoCode === countryCode);
   const dialingCode = selectedCountry ? `+${selectedCountry.phonecode}` : '';
-  const normalizedEmail = normalizeEmail(email);
-  const hasEmailInput = normalizedEmail.length > 0;
-  const isEmailVerified = normalizedEmail.length > 0 && normalizedEmail === verifiedEmail && emailVerificationStatus === 'verified';
 
   const getRequiredMessage = (fieldLabel) => `${fieldLabel} is required, please.`;
 
@@ -290,130 +292,86 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
     setSubmitError('');
   };
 
-  const handleEmailChange = (value) => {
-    const nextNormalized = normalizeEmail(value);
-    const currentNormalized = normalizeEmail(email);
-
-    setEmail(value);
-    clearFieldError('email');
-    clearFieldError('emailVerification');
-    setSubmitError('');
-
-    if (nextNormalized !== currentNormalized) {
-      setVerifiedEmail('');
-      setEmailVerificationStatus('');
-      setEmailVerificationMessage('');
-      setEmailVerificationCode('');
-      setAutoRequestedEmail('');
-    }
-  };
-
-  const requestEmailVerificationCode = async ({ isAuto = false } = {}) => {
-    if (!hasEmailInput) {
-      setFieldErrors(prev => ({ ...prev, email: getRequiredMessage('Personal Email Address') }));
-      return;
-    }
-
-    if (!isValidEmail(email)) {
-      setFieldErrors(prev => ({ ...prev, email: 'Please enter a valid email address.' }));
-      return;
-    }
-
-    setRequestingEmailCode(true);
-    setEmailVerificationMessage('');
-    setSubmitError('');
-    clearFieldError('email');
-    clearFieldError('emailVerification');
-
-    try {
-      const response = await fetch('/api/organizations/setup-request/email-verification/request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: normalizedEmail })
-      });
-      const message = await readSubmitErrorMessage(response);
-
-      if (!response.ok) {
-        setEmailVerificationMessage(message || 'Failed to send verification code. Please try again.');
-        setEmailVerificationStatus('error');
-        if (!isAuto) {
-          setAutoRequestedEmail('');
+  const startCooldown = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setResendCooldownSecs(600);
+    timerRef.current = setInterval(() => {
+      setResendCooldownSecs(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+          return 0;
         }
-        return;
-      }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
-      setEmailVerificationStatus('sent');
-      setEmailVerificationMessage(message || 'Verification code sent. Check your email inbox.');
-      setAutoRequestedEmail(normalizedEmail);
-    } catch {
-      setEmailVerificationStatus('error');
-      setEmailVerificationMessage('Unable to send verification code right now. Please try again.');
-      if (!isAuto) {
-        setAutoRequestedEmail('');
+  const resetEmailVerification = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    setResendCooldownSecs(0);
+    setEmail('');
+    setCodeSent(false);
+    setVerificationCode('');
+    setCodeError('');
+    setEmailSendCount(0);
+  };
+
+  const formatCooldown = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
+
+  const handleSendCode = async (emailValue) => {
+    const trimmed = (emailValue !== undefined ? emailValue : email).trim();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return;
+    setSendingCode(true);
+    setCodeError('');
+    try {
+      const res = await fetch('/api/organizations/setup-request/send-email-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmed })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCodeError(data.msg || 'Failed to send code. Please try again.');
+      } else {
+        setCodeSent(true);
+        setEmailSendCount(prev => prev + 1);
+        startCooldown();
       }
+    } catch {
+      setCodeError('Network error. Please check your connection and try again.');
     } finally {
-      setRequestingEmailCode(false);
+      setSendingCode(false);
     }
   };
 
-  useEffect(() => {
-    if (!hasEmailInput || !isValidEmail(email) || isEmailVerified || requestingEmailCode) {
+  const handleCheckCode = async () => {
+    if (!verificationCode.trim()) {
+      setCodeError('Please enter the verification code.');
       return;
     }
-    if (autoRequestedEmail === normalizedEmail) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      requestEmailVerificationCode({ isAuto: true });
-    }, 500);
-
-    return () => window.clearTimeout(timer);
-  }, [
-    autoRequestedEmail,
-    email,
-    hasEmailInput,
-    isEmailVerified,
-    normalizedEmail,
-    requestingEmailCode
-  ]);
-
-  const verifyEmailCode = async () => {
-    if (!hasEmailInput || !emailVerificationCode.trim()) {
-      setFieldErrors(prev => ({ ...prev, emailVerification: 'Verification code is required, please.' }));
-      return;
-    }
-
-    setVerifyingEmailCode(true);
-    setSubmitError('');
-    clearFieldError('emailVerification');
-
+    setCheckingCode(true);
+    setCodeError('');
     try {
-      const response = await fetch('/api/organizations/setup-request/email-verification/confirm', {
+      const res = await fetch('/api/organizations/setup-request/verify-email-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: normalizedEmail,
-          code: emailVerificationCode.trim()
-        })
+        body: JSON.stringify({ email: email.trim(), code: verificationCode.trim() })
       });
-      const message = await readSubmitErrorMessage(response);
-
-      if (!response.ok) {
-        setEmailVerificationStatus('error');
-        setEmailVerificationMessage(message || 'Verification failed. Please check the code and try again.');
-        return;
+      const data = await res.json();
+      if (!res.ok) {
+        setCodeError(data.msg || 'Incorrect code. Please try again.');
+      } else {
+        setStep(1);
       }
-
-      setVerifiedEmail(normalizedEmail);
-      setEmailVerificationStatus('verified');
-      setEmailVerificationMessage(message || 'Email verified successfully.');
-      setEmailVerificationCode('');
     } catch {
-      setEmailVerificationStatus('error');
-      setEmailVerificationMessage('Unable to verify code right now. Please try again.');
+      setCodeError('Network error. Please check your connection and try again.');
     } finally {
-      setVerifyingEmailCode(false);
+      setCheckingCode(false);
     }
   };
 
@@ -424,10 +382,6 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
       }
       return accumulator;
     }, {});
-
-    if (!isEmailVerified) {
-      nextErrors.emailVerification = 'Please verify your email before submitting this request.';
-    }
 
     setFieldErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -489,10 +443,6 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
               return;
             }
           }
-          if (message.toLowerCase().includes('verify your email')) {
-            setFieldErrors(prev => ({ ...prev, emailVerification: message }));
-            return;
-          }
           setSubmitError(message);
         } else {
           setSubmitError(`Submission failed with status ${res.status}. Please try again.`);
@@ -510,6 +460,136 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
       setSubmitting(false);
     }
   };
+
+  // ── Step 0: Email verification ─────────────────────────────────────────────
+  if (step === 0) {
+    const canResend = emailSendCount < 2 && resendCooldownSecs === 0 && !sendingCode;
+    const emailVerifyView = (
+      <>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <h2 style={{ margin: 0, color: '#000', fontSize: '2.1rem', fontWeight: 800 }}>
+            Request for Our Church Fellowship Setup
+          </h2>
+          <p style={{ margin: '8px 0 0', color: '#000', fontSize: '1.35rem' }}>
+            Enter your email address below. A 6-digit verification code will be sent to verify it before you proceed.
+          </p>
+        </div>
+
+        <div style={{ marginBottom: 8 }}>
+          {!codeSent ? (
+            <>
+              <Field label="Personal Email Address" required error={fieldErrors.email}>
+                <input
+                  style={getFieldStyle(Boolean(fieldErrors.email))}
+                  type="email"
+                  maxLength={80}
+                  value={email}
+                  onChange={e => {
+                    setEmail(e.target.value);
+                    setCodeError('');
+                    clearFieldError('email');
+                  }}
+                  onBlur={e => {
+                    const val = e.target.value.trim();
+                    if (val && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val) && !sendingCode) {
+                      handleSendCode(val);
+                    }
+                  }}
+                  placeholder="you@example.com"
+                  disabled={sendingCode}
+                />
+              </Field>
+              {sendingCode && (
+                <p style={{ color: '#666', fontSize: '1.15rem', marginTop: 4 }}>Sending verification code…</p>
+              )}
+              {!sendingCode && codeError && (
+                <div style={{ marginTop: 8, color: '#dc2626', fontSize: '1.15rem', fontWeight: 600 }}>{codeError}</div>
+              )}
+            </>
+          ) : (
+            <p style={{ fontSize: '1.2rem', color: '#000', margin: '0 0 16px', lineHeight: 1.55 }}>
+              A verification code has been sent to <strong>{email}</strong>.{' '}
+              <button
+                type="button"
+                onClick={resetEmailVerification}
+                style={{ background: 'none', border: 'none', color: '#4169e1', cursor: 'pointer', textDecoration: 'underline', fontSize: 'inherit', padding: 0 }}
+              >
+                Wrong email? Click here to change.
+              </button>
+            </p>
+          )}
+
+          {codeSent && (
+            <div style={{ marginTop: 8 }}>
+              <Field label="Enter Verification Code">
+                <input
+                  style={getFieldStyle(Boolean(codeError))}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={verificationCode}
+                  onChange={e => { setVerificationCode(e.target.value.replace(/[^0-9]/g, '')); setCodeError(''); }}
+                  placeholder="6-digit code"
+                  autoFocus
+                />
+              </Field>
+
+              {codeError && (
+                <div style={{ marginBottom: 12, color: '#dc2626', fontSize: '1.15rem', fontWeight: 600 }}>{codeError}</div>
+              )}
+
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={handleCheckCode}
+                  disabled={checkingCode}
+                  style={{ padding: '0.5rem 1.2rem', background: checkingCode ? '#93c5fd' : '#4169e1', color: '#fff', border: 'none', borderRadius: 7, fontSize: '1.35rem', fontWeight: 700, cursor: checkingCode ? 'not-allowed' : 'pointer' }}
+                >
+                  {checkingCode ? 'Checking…' : 'Check Code'}
+                </button>
+                {emailSendCount < 2 && (
+                  <button
+                    type="button"
+                    onClick={() => handleSendCode(email)}
+                    disabled={!canResend}
+                    style={{ padding: '0.5rem 1.2rem', background: 'none', color: canResend ? '#4169e1' : '#9ca3af', border: `1px solid ${canResend ? '#4169e1' : '#d1d5db'}`, borderRadius: 7, fontSize: '1.15rem', cursor: canResend ? 'pointer' : 'not-allowed' }}
+                  >
+                    {sendingCode ? 'Sending…' : resendCooldownSecs > 0 ? `Resend in ${formatCooldown(resendCooldownSecs)}` : 'Resend Code'}
+                  </button>
+                )}
+              </div>
+
+              {emailSendCount >= 2 && (
+                <div style={{ marginTop: 16, padding: '12px 16px', background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 7 }}>
+                  <p style={{ margin: 0, color: '#92400e', fontSize: '1.15rem' }}>
+                    We have already sent a verification code to this email address twice. If you have not received either code, please{' '}
+                    <button
+                      type="button"
+                      onClick={resetEmailVerification}
+                      style={{ background: 'none', border: 'none', color: '#92400e', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: 'inherit' }}
+                    >
+                      use a different email address
+                    </button>.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: 24 }}>
+          <button
+            type="button"
+            onClick={onBack}
+            style={{ background: 'none', border: 'none', color: '#000', cursor: 'pointer', textDecoration: 'underline', fontSize: '1.35rem' }}
+          >
+            ← Back
+          </button>
+        </div>
+      </>
+    );
+    return isMobile ? emailVerifyView : <div className="setup-form-desktop-wrapper">{emailVerifyView}</div>;
+  }
 
   const formContent = (
     <>
@@ -543,121 +623,15 @@ export default function FellowCenterSetupForm({ onBack, onSubmitted }) {
           </Field>
 
           <Field label="Personal Email Address" required error={fieldErrors.email}>
-            <div style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input
-                className={isTypingActive('email', email) ? 'field-typing-active' : ''}
-                style={getFieldStyle(Boolean(fieldErrors.email), {
-                  borderColor: isEmailVerified ? '#16a34a' : undefined,
-                  boxShadow: isEmailVerified ? '0 0 0 1px rgba(22, 163, 74, 0.15)' : undefined,
-                  paddingRight: 36
-                })}
+                style={getFieldStyle(false, { flex: 1, background: '#f3f4f6', color: '#555' })}
                 type="email"
-                maxLength={80}
                 value={email}
-                onChange={e => handleEmailChange(e.target.value)}
-                onFocus={() => setActiveTypingField('email')}
-                onBlur={() => setActiveTypingField('')}
-                required
-                placeholder="you@example.com"
+                readOnly
               />
-              {isEmailVerified && (
-                <span
-                  aria-label="Email verified"
-                  style={{
-                    position: 'absolute',
-                    right: 10,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: '#16a34a',
-                    fontSize: '1.2rem',
-                    fontWeight: 700
-                  }}
-                >
-                  ✓
-                </span>
-              )}
+              <span style={{ color: '#16a34a', fontWeight: 700, fontSize: '1.15rem', whiteSpace: 'nowrap' }}>&#10003; Verified</span>
             </div>
-
-            {hasEmailInput && (
-              <div style={{ marginTop: 10, padding: 10, border: '1px solid #d1d5db', borderRadius: 8, background: '#f8fafc' }}>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-                  <button
-                    type="button"
-                    onClick={() => requestEmailVerificationCode({ isAuto: false })}
-                    disabled={requestingEmailCode || !isValidEmail(email)}
-                    style={{
-                      ...inputStyle,
-                      width: 'auto',
-                      padding: '0.4rem 0.85rem',
-                      background: '#e2e8f0',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '1.1rem',
-                      fontWeight: 600,
-                      cursor: requestingEmailCode || !isValidEmail(email) ? 'not-allowed' : 'pointer',
-                      opacity: requestingEmailCode || !isValidEmail(email) ? 0.7 : 1
-                    }}
-                  >
-                    {requestingEmailCode ? 'Sending…' : 'Resend code'}
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <input
-                    style={getFieldStyle(Boolean(fieldErrors.emailVerification), {
-                      maxWidth: 240,
-                      fontSize: '1.1rem'
-                    })}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={emailVerificationCode}
-                    onChange={e => {
-                      clearFieldError('emailVerification');
-                      setEmailVerificationCode(e.target.value.replace(/[^0-9]/g, ''));
-                    }}
-                    placeholder="Enter verification code"
-                  />
-                  <button
-                    type="button"
-                    onClick={verifyEmailCode}
-                    disabled={verifyingEmailCode || !emailVerificationCode.trim()}
-                    style={{
-                      ...inputStyle,
-                      width: 'auto',
-                      padding: '0.4rem 0.85rem',
-                      background: '#4169e1',
-                      border: '1px solid #3657ba',
-                      color: '#fff',
-                      fontSize: '1.1rem',
-                      fontWeight: 600,
-                      cursor: verifyingEmailCode || !emailVerificationCode.trim() ? 'not-allowed' : 'pointer',
-                      opacity: verifyingEmailCode || !emailVerificationCode.trim() ? 0.7 : 1
-                    }}
-                  >
-                    {verifyingEmailCode ? 'Checking…' : 'Check code'}
-                  </button>
-                </div>
-
-                {!!emailVerificationMessage && (
-                  <div
-                    style={{
-                      marginTop: 8,
-                      fontSize: '1rem',
-                      color: emailVerificationStatus === 'verified' ? '#166534' : (emailVerificationStatus === 'error' ? '#dc2626' : '#1f2937'),
-                      fontWeight: 600
-                    }}
-                  >
-                    {emailVerificationMessage}
-                  </div>
-                )}
-
-                {fieldErrors.emailVerification && (
-                  <div style={{ marginTop: 6, color: '#dc2626', fontSize: '1rem', fontWeight: 600, textAlign: 'left' }}>
-                    {fieldErrors.emailVerification}
-                  </div>
-                )}
-              </div>
-            )}
           </Field>
 
           <Field label="Country" required error={fieldErrors.countryCode}>

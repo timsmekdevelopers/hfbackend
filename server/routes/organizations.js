@@ -5,28 +5,17 @@ const https = require('https');
 const router = express.Router();
 const FellowCenterSetupRequest = require('../models/FellowCenterSetupRequest');
 const Organization = require('../models/Organization');
-const SetupEmailVerification = require('../models/SetupEmailVerification');
 const { evictOrgConnection } = require('../orgDb');
 const { validateUri, migrateOrgDb } = require('../orgMigration');
-const { sendOCFCodeEmail, sendSetupRequestVerificationEmail } = require('../emailService');
+const { sendOCFCodeEmail, sendEmail } = require('../emailService');
 
-const SETUP_EMAIL_VERIFICATION_TTL_MS = 10 * 60 * 1000;
-
-function normalizeEmail(email) {
-  return String(email || '').trim().toLowerCase();
-}
-
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-function generateVerificationCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
-
-function hashVerificationCode(code) {
-  return crypto.createHash('sha256').update(String(code)).digest('hex');
-}
+// In-memory store for setup-request email verification codes
+// key: normalised email, value: { code: string, expiresAt: number, sendCount: number }
+const setupEmailCodes = new Map();
+// IP-based rate limit: key = IP string, value = total send count
+const ipSendCounts = new Map();
+const IP_MAX_SENDS = 45;
+const EMAIL_MAX_SENDS = 2;
 
 function createRequestedSubdomain(churchName) {
   return String(churchName || '')
@@ -36,67 +25,6 @@ function createRequestedSubdomain(churchName) {
     .replace(/^-+|-+$/g, '')
     .slice(0, 63);
 }
-
-// ─── Setup request email verification ───────────────────────────────────────
-router.post('/setup-request/email-verification/request', async (req, res) => {
-  try {
-    const email = normalizeEmail(req.body?.email);
-    if (!email) {
-      return res.status(400).json({ msg: 'Personal Email Address is required, please.' });
-    }
-    if (!isValidEmail(email)) {
-      return res.status(400).json({ msg: 'Please enter a valid email address.' });
-    }
-
-    const code = generateVerificationCode();
-    const now = new Date();
-    await SetupEmailVerification.findOneAndUpdate(
-      { email },
-      {
-        email,
-        codeHash: hashVerificationCode(code),
-        verified: false,
-        expiresAt: new Date(Date.now() + SETUP_EMAIL_VERIFICATION_TTL_MS),
-        updatedAt: now
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-
-    await sendSetupRequestVerificationEmail({ email, verificationCode: code });
-    res.json({ msg: 'Verification code sent to your email.' });
-  } catch (err) {
-    res.status(500).json({ msg: err.message });
-  }
-});
-
-router.post('/setup-request/email-verification/confirm', async (req, res) => {
-  try {
-    const email = normalizeEmail(req.body?.email);
-    const code = String(req.body?.code || '').trim();
-
-    if (!email || !code) {
-      return res.status(400).json({ msg: 'Email and verification code are required.' });
-    }
-
-    const entry = await SetupEmailVerification.findOne({ email });
-    if (!entry || !entry.expiresAt || entry.expiresAt.getTime() <= Date.now()) {
-      await SetupEmailVerification.deleteOne({ email });
-      return res.status(410).json({ msg: 'Verification code has expired. Please request a new one.' });
-    }
-
-    if (entry.codeHash !== hashVerificationCode(code)) {
-      return res.status(401).json({ msg: 'Invalid verification code.' });
-    }
-
-    entry.verified = true;
-    entry.updatedAt = new Date();
-    await entry.save();
-
-    res.json({ msg: 'Email verified successfully.' });
-  } catch (err) {
-    res.status(500).json({ msg: err.message });
-  }
-});
 
 // ─── Domain verification helpers ─────────────────────────────────────────────
 
@@ -164,6 +92,81 @@ function vercelAddDomain(domain) {
 }
 
 // ─── POST /api/organizations/setup-request ─────────────────────────────────
+// Public. Send a 6-digit email verification code before submitting a setup request.
+router.post('/setup-request/send-email-code', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const normalised = String(email || '').trim().toLowerCase();
+    if (!normalised || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalised)) {
+      return res.status(400).json({ msg: 'A valid email address is required.' });
+    }
+    // IP-based rate limit
+    const ip = (String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()) || req.socket?.remoteAddress || 'unknown';
+    const ipCount = ipSendCounts.get(ip) || 0;
+    if (ipCount >= IP_MAX_SENDS) {
+      return res.status(429).json({ msg: 'Too many verification emails sent from this network. Please try again later or contact support.' });
+    }
+    // Per-email send limit
+    const existingEntry = setupEmailCodes.get(normalised);
+    if (existingEntry && existingEntry.sendCount >= EMAIL_MAX_SENDS) {
+      return res.status(429).json({ msg: 'This email address has already received the maximum number of verification codes. Please use a different email address.', emailBlocked: true });
+    }
+    const existing = await FellowCenterSetupRequest.findOne({
+      email: new RegExp(`^${normalised.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'),
+      status: { $in: ['pending', 'approved'] }
+    });
+    if (existing) {
+      return res.status(409).json({ msg: 'A setup request with that email already exists.' });
+    }
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const newSendCount = (existingEntry?.sendCount || 0) + 1;
+    setupEmailCodes.set(normalised, { code, expiresAt: Date.now() + 10 * 60 * 1000, sendCount: newSendCount });
+    ipSendCounts.set(ip, ipCount + 1);
+    await sendEmail({
+      to: normalised,
+      subject: 'Email Verification Code \u2013 Our Church Fellowship Setup',
+      htmlContent: `
+        <html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;">
+          <div style="max-width:600px;margin:0 auto;padding:20px;">
+            <h2>Our Church Fellowship Setup</h2>
+            <p>Use the code below to verify your email address:</p>
+            <div style="background:#f5f5f5;padding:20px;border-radius:5px;text-align:center;margin:20px 0;">
+              <h1 style="margin:0;color:#2c3e50;letter-spacing:4px;">${code}</h1>
+            </div>
+            <p style="color:#666;font-size:14px;">This code expires in 10 minutes. If you did not request this, please ignore this email.</p>
+            <p style="color:#999;font-size:12px;">Best regards,<br/>Our Fellowship Team</p>
+          </div>
+        </body></html>`,
+      textContent: `Your verification code is: ${code}\n\nThis code expires in 10 minutes.`
+    });
+    res.json({ msg: 'Verification code sent.' });
+  } catch (err) {
+    res.status(500).json({ msg: err.message || 'Failed to send verification code.' });
+  }
+});
+
+// Public. Verify the email code sent by the route above.
+router.post('/setup-request/verify-email-code', (req, res) => {
+  const { email, code } = req.body;
+  const normalised = String(email || '').trim().toLowerCase();
+  if (!normalised || !code) {
+    return res.status(400).json({ msg: 'Email and code are required.' });
+  }
+  const entry = setupEmailCodes.get(normalised);
+  if (!entry) {
+    return res.status(400).json({ msg: 'No verification code found for this email. Please request a new one.' });
+  }
+  if (Date.now() > entry.expiresAt) {
+    setupEmailCodes.delete(normalised);
+    return res.status(410).json({ msg: 'Verification code has expired. Please request a new one.' });
+  }
+  if (String(entry.code) !== String(code).trim()) {
+    return res.status(401).json({ msg: 'Incorrect verification code. Please try again.' });
+  }
+  setupEmailCodes.delete(normalised);
+  res.json({ msg: 'Email verified.' });
+});
+
 // Public. Anyone can submit a Fellow Center Setup Request (Senior Pastor flow).
 router.post('/setup-request', async (req, res) => {
   try {
@@ -172,11 +175,10 @@ router.post('/setup-request', async (req, res) => {
       churchName, churchLogo, churchAddress, churchEnquiryPhone,
       wantsDedicatedDatabase, wantsCustomDomain
     } = req.body;
-    const normalizedEmail = normalizeEmail(email);
 
     const requiredFields = [
       { label: 'Full Name', value: name },
-      { label: 'Personal Email Address', value: normalizedEmail },
+      { label: 'Personal Email Address', value: email },
       { label: 'Personal Phone Number', value: phone },
       { label: 'Residential Address', value: address },
       { label: 'Your Position / Title in the Church or Commission', value: position },
@@ -191,20 +193,9 @@ router.post('/setup-request', async (req, res) => {
       return res.status(400).json({ msg: `${missingField.label} is required, please.` });
     }
 
-    const verificationEntry = await SetupEmailVerification.findOne({ email: normalizedEmail });
-    if (
-      !verificationEntry ||
-      !verificationEntry.verified ||
-      !verificationEntry.expiresAt ||
-      verificationEntry.expiresAt.getTime() <= Date.now()
-    ) {
-      await SetupEmailVerification.deleteOne({ email: normalizedEmail });
-      return res.status(403).json({ msg: 'Please verify your email before submitting this request.' });
-    }
-
     // Reject if a pending/approved request already exists for this email
     const existing = await FellowCenterSetupRequest.findOne({
-      email: normalizedEmail,
+      email,
       status: { $in: ['pending', 'approved'] }
     });
     if (existing) {
@@ -212,14 +203,13 @@ router.post('/setup-request', async (req, res) => {
     }
 
     const request = new FellowCenterSetupRequest({
-      name, email: normalizedEmail, phone, address, position, passportPhoto,
+      name, email, phone, address, position, passportPhoto,
       churchName, churchLogo, churchAddress, churchEnquiryPhone,
       requestedSubdomain: createRequestedSubdomain(churchName),
       wantsDedicatedDatabase: Boolean(wantsDedicatedDatabase),
       wantsCustomDomain: Boolean(wantsCustomDomain)
     });
     await request.save();
-    await SetupEmailVerification.deleteOne({ email: normalizedEmail });
 
     res.status(201).json({ msg: 'Setup request submitted successfully.', request });
   } catch (err) {
